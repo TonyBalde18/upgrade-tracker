@@ -10,10 +10,12 @@ interface UiState extends PersistedUi {
   paletteOpen: boolean
   paletteQuery: string
   newUpgradeOpen: boolean
+  /** customer to preselect in the New upgrade flow */
+  newUpgradeCustomerId: string | null
   toggleSidebar: () => void
   openPalette: (query?: string) => void
   setPaletteOpen: (open: boolean) => void
-  setNewUpgradeOpen: (open: boolean) => void
+  setNewUpgradeOpen: (open: boolean, customerId?: string) => void
 }
 
 const stored = readJson<Partial<PersistedUi>>(KEYS.ui) ?? {}
@@ -23,6 +25,7 @@ export const useUi = create<UiState>()((set, get) => ({
   paletteOpen: false,
   paletteQuery: '',
   newUpgradeOpen: false,
+  newUpgradeCustomerId: null,
   toggleSidebar() {
     const sidebarCollapsed = !get().sidebarCollapsed
     set({ sidebarCollapsed })
@@ -34,7 +37,7 @@ export const useUi = create<UiState>()((set, get) => ({
   setPaletteOpen(open) {
     set({ paletteOpen: open })
   },
-  setNewUpgradeOpen(open) {
-    set({ newUpgradeOpen: open })
+  setNewUpgradeOpen(open, customerId) {
+    set({ newUpgradeOpen: open, newUpgradeCustomerId: open ? (customerId ?? null) : null })
   },
 }))

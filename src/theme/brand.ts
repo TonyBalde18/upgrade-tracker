@@ -187,3 +187,13 @@ export const customerColors = [
   '#EC4899',
   '#94A3B8',
 ] as const
+
+/** Phase colours (bars, group headers, canvas nodes). Always shown together with the phase name. */
+export const phaseTone = {
+  Preparation: 'indigo',
+  DEV: 'sky',
+  UAT: 'teal',
+  'Go-live': 'amber',
+  PROD: 'violet',
+  Hypercare: 'green',
+} as const satisfies Record<string, Tone>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { CalendarDays, ChartGantt, Compass, ListChecks, Rocket, Workflow } from 'lucide-react'
+import { CalendarDays, ChartGantt, Compass, Workflow } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/Button'
 
@@ -7,8 +7,6 @@ const VIEWS = {
   canvas: { icon: <Workflow />, title: 'Canvas view', phase: 4 },
   timeline: { icon: <ChartGantt />, title: 'Global timeline', phase: 3 },
   week: { icon: <CalendarDays />, title: 'My week', phase: 5 },
-  plan: { icon: <Rocket />, title: 'Upgrade plan', phase: 2 },
-  template: { icon: <ListChecks />, title: 'Template editor', phase: 2 },
   notfound: { icon: <Compass />, title: 'Page not found', phase: 0 },
 } as const
 

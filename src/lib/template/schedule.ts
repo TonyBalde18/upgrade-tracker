@@ -134,7 +134,8 @@ export function recalculateTasks(
     const cat = statusCategory(settings.taskStatuses, t.status)
     let status = t.status
     if (!s.applicable) status = na
-    else if (cat === 'na') status = planned
+    // only the UAT window can disappear; other N/A tasks were set by the user on purpose
+    else if (cat === 'na' && step.anchor === 'uat') status = planned
     const same =
       t.start === s.start &&
       t.end === s.end &&

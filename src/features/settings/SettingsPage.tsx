@@ -377,7 +377,7 @@ export default function SettingsPage() {
                 onClick={() =>
                   document
                     .getElementById(`settings-${s.id}`)
-                    ?.scrollIntoView({ behavior: 'smooth' })
+                    ?.scrollIntoView?.({ behavior: 'smooth' })
                 }
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted hover:bg-surface-2 hover:text-text cursor-pointer"
               >
