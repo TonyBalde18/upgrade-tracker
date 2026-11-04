@@ -1,0 +1,168 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Tailwind utilities backed by the brand tokens (values are generated from src/theme/brand.ts). */
+@theme inline {
+  --color-bg: var(--ut-bg);
+  --color-surface: var(--ut-surface);
+  --color-surface-2: var(--ut-surface-2);
+  --color-surface-3: var(--ut-surface-3);
+  --color-overlay: var(--ut-overlay);
+  --color-border: var(--ut-border);
+  --color-border-strong: var(--ut-border-strong);
+  --color-text: var(--ut-text);
+  --color-muted: var(--ut-muted);
+  --color-subtle: var(--ut-subtle);
+  --color-accent: var(--ut-accent);
+  --color-accent-hover: var(--ut-accent-hover);
+  --color-accent-press: var(--ut-accent-press);
+  --color-accent-fg: var(--ut-accent-fg);
+  --color-accent-text: var(--ut-accent-text);
+  --color-accent-soft: var(--ut-accent-soft);
+  --color-ring: var(--ut-ring);
+  --color-danger: var(--ut-danger);
+  --color-danger-soft: var(--ut-danger-soft);
+  --color-success: var(--ut-success);
+  --color-warning: var(--ut-warning);
+
+  --font-heading: var(--ut-font-heading);
+  --font-sans: var(--ut-font-body);
+  --font-mono: var(--ut-font-mono);
+
+  --shadow-card: var(--ut-shadow);
+  --shadow-lift: var(--ut-shadow-lift);
+  --shadow-glow: 0 0 0 1px var(--ut-accent), 0 0 24px var(--ut-accent-glow);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg text-text font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01', 'tnum';
+    overflow: hidden;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading;
+    letter-spacing: -0.01em;
+  }
+  ::selection {
+    background: var(--ut-accent);
+    color: var(--ut-accent-fg);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ut-ring);
+    outline-offset: 2px;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ut-border-strong) transparent;
+  }
+}
+
+/* Wide-tracked uppercase label, like the "WE MAKE WORK FLOW" tagline */
+@utility eyebrow {
+  font-family: var(--ut-font-heading);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--ut-subtle);
+  letter-spacing: 0.18em;
+}
+
+@layer components {
+  /* Subtle geometric grid: scalability, logic and structure */
+  .bg-pattern-grid {
+    background-image:
+      linear-gradient(var(--ut-pattern) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ut-pattern) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .bg-pattern-dots {
+    background-image: radial-gradient(var(--ut-pattern) 1.2px, transparent 1.2px);
+    background-size: 18px 18px;
+  }
+  /* Problem treatment (Blocked / overdue): diagonal stripes, never used for "active" */
+  .bg-problem-stripes {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--ut-danger-soft) 0 6px,
+      transparent 6px 12px
+    );
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Gentle pulse for the "active / now" indicator */
+@keyframes ut-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+.pulse-dot {
+  position: relative;
+}
+.pulse-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: ut-pulse 2s ease-in-out infinite;
+}
+
+/* Reduced motion: system preference or Settings toggle (html.reduce-motion) */
+@media (prefers-reduced-motion: reduce) {
+  html:not(.force-motion) *,
+  html:not(.force-motion) *::before,
+  html:not(.force-motion) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Radix popovers / menus / tooltips: quick scale-fade */
+@keyframes ut-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.ut-pop[data-state='open'],
+.ut-pop[data-state='delayed-open'],
+.ut-pop[data-state='instant-open'] {
+  animation: ut-pop-in 140ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  transform-origin: var(--radix-popper-transform-origin);
+}
+@keyframes ut-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}

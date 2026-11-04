@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-ssr
+coverage
+*.local
+.env
+.env.*
+.vite
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+# never commit real data exports
+tracker*.json
+upgrade-tracker-export*.json
