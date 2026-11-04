@@ -1,11 +1,10 @@
 import { Link } from 'react-router'
-import { CalendarDays, ChartGantt, Compass, Workflow } from 'lucide-react'
+import { CalendarDays, Compass, Workflow } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/Button'
 
 const VIEWS = {
   canvas: { icon: <Workflow />, title: 'Canvas view', phase: 4 },
-  timeline: { icon: <ChartGantt />, title: 'Global timeline', phase: 3 },
   week: { icon: <CalendarDays />, title: 'My week', phase: 5 },
   notfound: { icon: <Compass />, title: 'Page not found', phase: 0 },
 } as const

@@ -89,5 +89,9 @@ describe('app smoke test', () => {
     if (hash.startsWith('#/upgrades/demo-upg-2')) expect(el.textContent).toContain('N/A')
     if (hash === '#/upgrades/missing') expect(el.textContent).toContain('Upgrade not found')
     if (hash === '#/template') expect(el.textContent).toContain('Live preview')
+    if (hash === '#/timeline') {
+      expect(el.textContent).toContain('Global timeline')
+      expect(el.textContent).toContain('1 PROD clash')
+    }
   })
 })

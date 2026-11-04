@@ -12,6 +12,7 @@ import {
   updateTask,
   updateUpgradeMeta,
   updateWindow,
+  moveWindow,
 } from './upgradeActions'
 
 const U = 'demo-upg-1' // Acme, has UAT
@@ -93,5 +94,19 @@ describe('upgrade actions', () => {
     expect(task('step-24').name).toBe('Documentation')
     applyTemplateToUpgrade(U)
     expect(task('step-24').name).toBe('Final documentation')
+  })
+
+  it('moves a window alone or with its dependent tasks', () => {
+    const prod = upg().windows.prod.start
+    const golive = task('step-18').start!
+    const dev = task('step-01').start!
+    moveWindow(U, 'prod', 7, false)
+    expect(upg().windows.prod.start.slice(10)).toBe(prod.slice(10)) // keeps the time
+    expect(task('step-18').start).toBe(golive)
+    undo()
+    moveWindow(U, 'prod', 7, true)
+    expect(task('step-18').start).not.toBe(golive)
+    expect(task('step-01').start).toBe(dev) // DEV-anchored tasks stay
+    expect(upg().log[0]!.text).toContain('(9 task(s) moved too)')
   })
 })

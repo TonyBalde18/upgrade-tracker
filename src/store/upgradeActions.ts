@@ -4,7 +4,7 @@
  * e.g. `Acme Corp - Australia: "Upgrade DEV to Australia release" → Completed`.
  */
 import type { Draft } from 'immer'
-import { formatDay } from '@/lib/dates'
+import { addDaysIso, formatDay } from '@/lib/dates'
 import { newId } from '@/lib/id'
 import type {
   EnvKey,
@@ -461,4 +461,42 @@ export function deleteCustomer(id: string): boolean {
     d.customers = d.customers.filter((x) => x.id !== id)
   })
   return true
+}
+
+/**
+ * Move a window by N days (timeline drag). Optionally shift the tasks anchored on
+ * that window by the same amount, keeping their relative spacing (and manual tweaks).
+ */
+export function moveWindow(id: string, env: EnvKey, days: number, shiftDependents: boolean) {
+  if (days === 0) return
+  editUpgrade(
+    id,
+    (doc, u) =>
+      `${label(doc, u)}: ${ENV_LABEL[env]} window moved ${days > 0 ? '+' : ''}${days} day(s)${shiftDependents ? ' with its tasks' : ''}`,
+    (u, d) => {
+      const w = u.windows[env]
+      if (!w) return
+      const from = w.start
+      const stamp = new Date().toISOString()
+      w.start = `${addDaysIso(w.start.slice(0, 10), days)}${w.start.slice(10)}`
+      w.updatedAt = stamp
+      let shifted = 0
+      if (shiftDependents) {
+        const anchor = new Map(d.template.steps.map((s) => [s.id, s.anchor]))
+        for (const t of u.tasks) {
+          if (!t.templateStepId || anchor.get(t.templateStepId) !== env) continue
+          if (t.start) t.start = addDaysIso(t.start, days)
+          if (t.end) t.end = addDaysIso(t.end, days)
+          if (t.start || t.end) {
+            t.updatedAt = stamp
+            shifted++
+          }
+        }
+      }
+      log(
+        u,
+        `${ENV_LABEL[env]} window moved: ${formatDay(from.slice(0, 10))} → ${formatDay(w.start.slice(0, 10))}${shiftDependents ? ` (${shifted} task(s) moved too)` : ''}`,
+      )
+    },
+  )
 }
