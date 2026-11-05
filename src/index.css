@@ -166,3 +166,67 @@ html.reduce-motion *::after {
     transform: translateX(100%);
   }
 }
+
+/* ---- Canvas (React Flow) themed with brand tokens ---- */
+.ut-flow {
+  --xy-background-color: transparent;
+  --xy-node-border-radius: 14px;
+  --xy-minimap-background-color: var(--ut-surface);
+  --xy-minimap-mask-background-color: var(--ut-overlay);
+  --xy-controls-button-background-color: var(--ut-surface);
+  --xy-controls-button-background-color-hover: var(--ut-surface-2);
+  --xy-controls-button-color: var(--ut-text);
+  --xy-controls-button-border-color: var(--ut-border);
+  --xy-attribution-background-color: transparent;
+}
+.ut-flow .react-flow__node-lane,
+.ut-flow .react-flow__node-phase,
+.ut-flow .react-flow__node-axis,
+.ut-flow .react-flow__node-today {
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+.ut-flow .react-flow__controls {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--ut-border);
+  box-shadow: var(--ut-shadow);
+}
+.ut-flow .react-flow__minimap {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--ut-border);
+}
+/* current phase: a soft breathing ring (opacity/transform only) */
+@keyframes ut-node-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+.node-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 18px;
+  border: 2px solid var(--ut-accent);
+  animation: ut-node-pulse 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+/* the red flow along the edge into the active phase */
+@keyframes ut-flow-dash {
+  to {
+    stroke-dashoffset: -36;
+  }
+}
+.flow-edge-active {
+  stroke-dasharray: 12 6;
+  animation: ut-flow-dash 0.9s linear infinite;
+}

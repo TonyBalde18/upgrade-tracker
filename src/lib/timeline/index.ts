@@ -161,3 +161,39 @@ export function dependentTaskIds(
     .filter((t) => t.templateStepId && anchorOf.get(t.templateStepId) === env && t.start)
     .map((t) => t.id)
 }
+
+export interface PhaseFlowStep {
+  phase: Phase
+  span: PhaseSpan | null // null = no applicable tasks (e.g. UAT without UAT window)
+  /** visual state on the canvas */
+  state: 'done' | 'current' | 'future' | 'blocked' | 'na'
+}
+
+/**
+ * The six phases in order, with the "current" phase = the first applicable phase
+ * that is not done. Everything before it is done, everything after is future.
+ * A blocked phase stays "blocked" wherever it is.
+ */
+export function phaseFlow(
+  u: Pick<Upgrade, 'tasks' | 'scheduleStatus'>,
+  settings: Pick<Settings, 'taskStatuses' | 'scheduleStatuses'>,
+): PhaseFlowStep[] {
+  const spans = new Map(phaseSpans(u, settings).map((s) => [s.phase, s]))
+  const upgradeCat = statusCategory(settings.scheduleStatuses, u.scheduleStatus)
+  const finished = upgradeCat === 'done' || upgradeCat === 'cancelled'
+  let currentFound = finished
+  return PHASES.map((phase) => {
+    const span = spans.get(phase) ?? null
+    if (!span) return { phase, span, state: 'na' as const }
+    if (span.state === 'blocked') {
+      currentFound = true
+      return { phase, span, state: 'blocked' as const }
+    }
+    if (span.state === 'done' && !currentFound) return { phase, span, state: 'done' as const }
+    if (!currentFound) {
+      currentFound = true
+      return { phase, span, state: 'current' as const }
+    }
+    return { phase, span, state: span.state === 'done' ? ('done' as const) : ('future' as const) }
+  })
+}

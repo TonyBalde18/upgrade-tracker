@@ -10,6 +10,7 @@ const ComingSoon = lazy(() => import('@/features/placeholder/ComingSoon'))
 const PlanPage = lazy(() => import('@/features/plan/PlanPage'))
 const TemplatePage = lazy(() => import('@/features/template/TemplatePage'))
 const TimelinePage = lazy(() => import('@/features/timeline/TimelinePage'))
+const CanvasPage = lazy(() => import('@/features/canvas/CanvasPage'))
 
 /** Route-level key: switching upgrades animates; picking another customer or changing the query does not. */
 function routeKey(pathname: string): string {
@@ -32,7 +33,7 @@ export function AnimatedRoutes() {
         <Suspense fallback={<PageSkeleton />}>
           <Routes location={location}>
             <Route path="/" element={<DashboardPage />} />
-            <Route path="/canvas" element={<ComingSoon view="canvas" />} />
+            <Route path="/canvas" element={<CanvasPage />} />
             <Route path="/timeline" element={<TimelinePage />} />
             <Route path="/week" element={<ComingSoon view="week" />} />
             <Route path="/customers" element={<CustomersPage />} />

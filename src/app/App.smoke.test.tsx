@@ -10,6 +10,14 @@ import { useUi } from '@/store/ui'
 
 // React needs this flag to run act() outside a test renderer
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+// jsdom has no ResizeObserver (React Flow needs one)
+if (!('ResizeObserver' in globalThis)) {
+  ;(globalThis as Record<string, unknown>).ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
 
 async function render(hash: string) {
   window.location.hash = hash

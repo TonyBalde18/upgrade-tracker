@@ -500,3 +500,12 @@ export function moveWindow(id: string, env: EnvKey, days: number, shiftDependent
     },
   )
 }
+
+/** Auto-layout: forget dragged canvas positions for these upgrades (one undo step). */
+export function resetCanvasPositions(ids: string[]) {
+  const targets = st().doc.upgrades.filter((u) => ids.includes(u.id) && u.canvas.nodePositions)
+  if (targets.length === 0) return
+  st().commit(`Canvas: auto-layout ${targets.length} lane(s)`, (d) => {
+    for (const u of d.upgrades) if (ids.includes(u.id)) u.canvas.nodePositions = undefined
+  })
+}

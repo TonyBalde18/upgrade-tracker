@@ -3,7 +3,7 @@ import { buildDemoDoc } from '@/demo/demo-data'
 import { defaultSettings } from '@/lib/model/defaults'
 import type { Upgrade } from '@/lib/model/types'
 import { makeWindow } from '@/lib/upgrade/logic'
-import { dependentTaskIds, nightOf, phaseSpans, prodClashes, windowPosition } from '.'
+import { dependentTaskIds, nightOf, phaseFlow, phaseSpans, prodClashes, windowPosition } from '.'
 
 const now = new Date('2026-11-04T10:00:00Z')
 const settings = defaultSettings()
@@ -114,5 +114,36 @@ describe('dependent tasks', () => {
     const anchors = new Map(doc.template.steps.map((s) => [s.id, s.anchor]))
     expect(dependentTaskIds(doc.upgrades[0]!, anchors, 'prod')).toHaveLength(9)
     expect(dependentTaskIds(doc.upgrades[1]!, anchors, 'uat')).toHaveLength(0)
+  })
+})
+
+describe('phase flow (canvas)', () => {
+  it('marks done phases, the current phase and future phases', () => {
+    const doc = buildDemoDoc(now)
+    const globex = doc.upgrades[1]! // DEV in 6 days, no UAT
+    const flow = phaseFlow(globex, doc.settings)
+    expect(flow.map((f) => f.state)).toEqual([
+      'current',
+      'future',
+      'na',
+      'future',
+      'future',
+      'future',
+    ])
+  })
+
+  it('keeps a blocked phase visible as blocked', () => {
+    const doc = buildDemoDoc(now)
+    const acme = doc.upgrades[0]! // UAT has a blocked step
+    const flow = phaseFlow(acme, doc.settings)
+    expect(flow.find((f) => f.phase === 'UAT')!.state).toBe('blocked')
+    expect(flow.find((f) => f.phase === 'Preparation')!.state).toBe('done')
+    expect(flow.find((f) => f.phase === 'Hypercare')!.state).toBe('future')
+  })
+
+  it('has no current phase when the upgrade is done', () => {
+    const doc = buildDemoDoc(now)
+    const nw = doc.upgrades[3]! // Done
+    expect(phaseFlow(nw, doc.settings).every((f) => f.state === 'done')).toBe(true)
   })
 })
