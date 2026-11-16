@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import {
   ArrowLeft,
   ArrowRight,
+  CalendarPlus,
   CalendarClock,
   Copy,
   ExternalLink,
@@ -18,6 +19,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { undo, useTracker } from '@/store/tracker'
+import { useUi } from '@/store/ui'
 import type { EnvKey, Task, UpgradeWindow } from '@/lib/model/types'
 import { ENV_KEYS } from '@/lib/model/types'
 import { addDaysIso } from '@/lib/dates'
@@ -274,6 +276,7 @@ export default function PlanPage() {
             className="hover:underline"
           >
             <CustomerChip
+              logo={customer?.logo}
               color={customer?.color ?? '#999'}
               label={customer?.name ?? 'Unknown customer'}
               className="eyebrow !text-muted"
@@ -393,6 +396,14 @@ export default function PlanPage() {
                 </DropdownMenu.Item>
                 <DropdownMenu.Item className={menuItem} onSelect={() => setDupOpen(true)}>
                   <Copy className="h-4 w-4" /> Duplicate for next cycle…
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className={menuItem}
+                  onSelect={() =>
+                    useUi.getState().setIcsTarget({ kind: 'upgrade', id: upgrade.id })
+                  }
+                >
+                  <CalendarPlus className="h-4 w-4" /> Export to calendar (.ics)…
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="my-1 h-px bg-border" />
                 <DropdownMenu.Item

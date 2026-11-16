@@ -68,6 +68,8 @@ export interface Customer {
   instances: { dev: string; uat: string; prod: string }
   notes: string
   active: boolean
+  /** small raster logo as a data URL (PNG / WebP / JPEG, max ~128 px), kept only in the private data file */
+  logo?: string
 }
 
 export type Phase = 'Preparation' | 'DEV' | 'UAT' | 'Go-live' | 'PROD' | 'Hypercare'

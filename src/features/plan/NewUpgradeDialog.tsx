@@ -248,7 +248,12 @@ function Body() {
                           active ? 'cursor-not-allowed opacity-55' : 'cursor-pointer',
                         )}
                       >
-                        <CustomerChip color={c.color} label={c.name} className="font-medium" />
+                        <CustomerChip
+                          logo={c.logo}
+                          color={c.color}
+                          label={c.name}
+                          className="font-medium"
+                        />
                         {active ? (
                           <span className="flex shrink-0 items-center gap-1 text-xs text-subtle">
                             <Lock className="h-3 w-3" /> Active: {active.fromFamily} →{' '}

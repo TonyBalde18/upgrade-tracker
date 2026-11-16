@@ -6,6 +6,7 @@ import { emptyDoc } from '@/lib/model/defaults'
 import { useTracker } from '@/store/tracker'
 import { saveNow } from '@/store/persistence'
 import { confirm } from '@/components/ui/confirm'
+import { loadConnection } from '@/lib/github/config'
 
 function hasData(): boolean {
   const { doc } = useTracker.getState()
@@ -13,6 +14,13 @@ function hasData(): boolean {
 }
 
 export async function loadDemoData(): Promise<void> {
+  if (loadConnection().mode === 'github') {
+    toast.error('Demo data is only available in Local mode', {
+      description:
+        'In GitHub mode it would replace your real data in the data repository. Switch to Local mode in Settings first.',
+    })
+    return
+  }
   if (hasData()) {
     const ok = await confirm({
       title: 'Replace your data with demo data?',
@@ -34,7 +42,10 @@ export async function loadDemoData(): Promise<void> {
 export async function clearAllData(): Promise<void> {
   const ok = await confirm({
     title: 'Clear all data in this browser?',
-    body: 'Customers, upgrades and your template edits will be removed from this browser. Settings like theme are kept. This can not be undone.',
+    body:
+      loadConnection().mode === 'github'
+        ? 'Customers, upgrades and your template edits will be removed, here AND in tracker.json on GitHub (the repository history keeps older versions). Settings like theme are kept.'
+        : 'Customers, upgrades and your template edits will be removed from this browser. Settings like theme are kept. This can not be undone.',
     confirmLabel: 'Clear data',
     danger: true,
   })

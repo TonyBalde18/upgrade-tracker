@@ -24,7 +24,8 @@ import { activeUpgradeFor, ENV_LABEL } from '@/lib/upgrade/logic'
 import { progressOf } from '@/lib/template/schedule'
 import { newId } from '@/lib/id'
 import { Button } from '@/components/ui/Button'
-import { Card, CustomerChip, SectionTitle } from '@/components/ui/misc'
+import { Card, CustomerAvatar, CustomerChip, SectionTitle } from '@/components/ui/misc'
+import { LogoField } from './LogoField'
 import { Dialog } from '@/components/ui/Dialog'
 import { Field, Input, Textarea } from '@/components/ui/Input'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -143,12 +144,13 @@ function CustomerEditor({ customer }: { customer: Customer }) {
       <Card className="flex flex-col gap-5 p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-heading text-sm font-bold text-white"
-              style={{ backgroundColor: customer.color }}
-            >
-              {customer.shortName.slice(0, 3)}
-            </div>
+            <CustomerAvatar
+              name={customer.name}
+              shortName={customer.shortName}
+              color={customer.color}
+              logo={customer.logo}
+              size={44}
+            />
             <div className="min-w-0">
               <div className="eyebrow">Customer</div>
               <h2 className="truncate text-xl font-bold">{customer.name}</h2>
@@ -185,6 +187,16 @@ function CustomerEditor({ customer }: { customer: Customer }) {
               value={customer.snContact}
               onSave={(snContact) => save({ snContact })}
               placeholder="ServiceNow-side contact"
+            />
+          </Field>
+          <Field label="Logo" className="md:col-span-2">
+            <LogoField
+              customer={customer}
+              onChange={(logo) => {
+                const next = { ...customer, logo }
+                if (!logo) delete next.logo
+                upsert(next)
+              }}
             />
           </Field>
           <Field label="Colour">
@@ -463,6 +475,7 @@ export default function CustomersPage() {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <CustomerChip
+                          logo={c.logo}
                           color={c.color}
                           label={c.name}
                           className="text-sm font-medium"

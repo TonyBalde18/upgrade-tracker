@@ -39,6 +39,15 @@ const customer = z.object({
   instances: z.object({ dev: z.string(), uat: z.string(), prod: z.string() }),
   notes: z.string(),
   active: z.boolean(),
+  // raster images only (no SVG: it could carry scripts), and a size cap
+  logo: z
+    .string()
+    .regex(
+      /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/,
+      'logo must be a PNG, WebP or JPEG data URL',
+    )
+    .max(200_000, 'logo is too large')
+    .optional(),
 })
 
 const phase = z.enum(['Preparation', 'DEV', 'UAT', 'Go-live', 'PROD', 'Hypercare'])

@@ -47,7 +47,32 @@ export default defineConfig(({ command }) => ({
   },
   build: {
     target: 'es2022',
-    chunkSizeWarningLimit: 900,
+    chunkSizeWarningLimit: 400,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // zod ships comments rollup cannot place; harmless
+        if (warning.code === 'INVALID_ANNOTATION' && warning.id?.includes('zod')) return
+        warn(warning)
+      },
+      output: {
+        // Libraries in their own long-cached files: an app update only re-downloads app code.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler|react-router)[\\/]/.test(id))
+            return 'vendor-react'
+          if (/[\\/]node_modules[\\/](motion|motion-dom|motion-utils|framer-motion)[\\/]/.test(id))
+            return 'vendor-motion'
+          if (/[\\/]node_modules[\\/](@xyflow|d3-[^\\/]+|classcat)[\\/]/.test(id))
+            return 'vendor-flow'
+          if (/[\\/]node_modules[\\/](zod|immer|zustand|zundo|date-fns|date-fns-tz)[\\/]/.test(id))
+            return 'vendor-data'
+          // used only by lazily loaded pages: leave them with those pages
+          if (/[\\/]node_modules[\\/](@fontsource-variable|@dnd-kit|@tanstack)[\\/]/.test(id))
+            return undefined
+          return 'vendor-ui'
+        },
+      },
+    },
   },
   test: {
     environment: 'node',

@@ -60,6 +60,21 @@ describe('app smoke test', () => {
     await act(async () => useUi.getState().setNewUpgradeOpen(false))
   })
 
+  it('opens the calendar export dialog with an event count', async () => {
+    useTracker.getState().replaceDoc(buildDemoDoc())
+    const { root } = await render('#/')
+    cleanup = () => root.unmount()
+    await act(async () => {
+      useUi.getState().setIcsTarget({ kind: 'upgrade', id: 'demo-upg-1' })
+      await new Promise((r) => setTimeout(r, 50))
+    })
+    const text = document.body.textContent ?? ''
+    expect(text).toContain('Export this upgrade to your calendar')
+    expect(text).toContain('Windows + milestones')
+    expect(text).toContain('Download .ics')
+    await act(async () => useUi.getState().setIcsTarget(null))
+  })
+
   it('shows onboarding on first run', async () => {
     useTracker.getState().replaceDoc(emptyDoc())
     useTracker.getState().setHydrated()

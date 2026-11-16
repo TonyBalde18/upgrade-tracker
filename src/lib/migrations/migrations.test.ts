@@ -50,4 +50,31 @@ describe('schema migration', () => {
     })
     expect(parseDocText(JSON.stringify(doc)).customers[0]!.name).toBe('Société Générale Zürich')
   })
+
+  it('accepts a raster logo and rejects SVG or script URLs', () => {
+    const doc = emptyDoc()
+    const customer = {
+      id: 'c1',
+      name: 'Logo Co',
+      shortName: 'LC',
+      color: '#E1292C',
+      snContact: '',
+      consultants: [],
+      instances: { dev: '', uat: '', prod: '' },
+      notes: '',
+      active: true,
+    }
+    const png =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    expect(migrate({ ...doc, customers: [{ ...customer, logo: png }] }).customers[0]!.logo).toBe(
+      png,
+    )
+    expect(migrate({ ...doc, customers: [customer] }).customers[0]!.logo).toBeUndefined()
+    expect(() =>
+      migrate({ ...doc, customers: [{ ...customer, logo: 'data:image/svg+xml;base64,PHN2Zz4=' }] }),
+    ).toThrow(/logo/)
+    expect(() =>
+      migrate({ ...doc, customers: [{ ...customer, logo: 'javascript:alert(1)' }] }),
+    ).toThrow(/logo/)
+  })
 })

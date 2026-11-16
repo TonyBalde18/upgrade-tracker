@@ -12,6 +12,9 @@ interface UiState extends PersistedUi {
   newUpgradeOpen: boolean
   /** customer to preselect in the New upgrade flow */
   newUpgradeCustomerId: string | null
+  /** calendar export dialog: one upgrade, or everything upcoming */
+  icsTarget: { kind: 'upgrade'; id: string } | { kind: 'upcoming' } | null
+  setIcsTarget: (t: UiState['icsTarget']) => void
   toggleSidebar: () => void
   openPalette: (query?: string) => void
   setPaletteOpen: (open: boolean) => void
@@ -26,6 +29,10 @@ export const useUi = create<UiState>()((set, get) => ({
   paletteQuery: '',
   newUpgradeOpen: false,
   newUpgradeCustomerId: null,
+  icsTarget: null,
+  setIcsTarget(icsTarget) {
+    set({ icsTarget })
+  },
   toggleSidebar() {
     const sidebarCollapsed = !get().sidebarCollapsed
     set({ sidebarCollapsed })

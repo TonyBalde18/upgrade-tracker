@@ -26,6 +26,7 @@ import { firstStatusOf, statusCategory } from '@/lib/template/schedule'
 import { phaseTone } from '@/theme/brand'
 import { useReducedMotion } from '@/theme/motion'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { CustomerAvatar } from '@/components/ui/misc'
 import { ProgressRing } from '@/components/ui/ProgressRing'
 import { cn } from '@/components/ui/cn'
 import { StatusCell } from '@/features/plan/cells'
@@ -70,7 +71,10 @@ export const LaneNodeView = memo(function LaneNodeView({ data }: NodeProps<LaneN
           style={{ backgroundColor: color }}
         />
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
+          {customer?.logo && (
+            <CustomerAvatar name={customer.name} color={color} logo={customer.logo} size={34} />
+          )}
+          <div className="min-w-0 flex-1">
             <div className="eyebrow truncate" style={{ color }}>
               {customer?.shortName ?? ''}
             </div>

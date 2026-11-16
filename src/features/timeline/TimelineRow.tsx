@@ -179,6 +179,7 @@ export const TimelineRow = memo(function TimelineRow({
       >
         <div className="flex items-center justify-between gap-2">
           <CustomerChip
+            logo={customer?.logo}
             color={customer?.color ?? '#999'}
             label={customer?.name ?? 'Unknown'}
             className={cn('text-sm', firstOfGroup ? 'font-semibold' : 'text-muted')}

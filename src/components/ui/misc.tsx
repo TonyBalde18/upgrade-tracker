@@ -39,20 +39,82 @@ export function Skeleton({ className }: { className?: string }) {
 export function CustomerChip({
   color,
   label,
+  logo,
   className,
 }: {
   color: string
   label: string
+  logo?: string
   className?: string
 }) {
   return (
     <span className={cn('inline-flex min-w-0 items-center gap-1.5', className)}>
-      <span
-        className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
-        style={{ backgroundColor: color }}
-        aria-hidden
-      />
+      {logo ? (
+        <img
+          src={logo}
+          alt=""
+          className="h-4 w-4 shrink-0 rounded-[3px] bg-white object-contain p-px"
+          draggable={false}
+        />
+      ) : (
+        <span
+          className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+          style={{ backgroundColor: color }}
+          aria-hidden
+        />
+      )}
       <span className="truncate">{label}</span>
+    </span>
+  )
+}
+
+/** Logo on a white tile (logos are designed for white), or coloured initials. */
+export function CustomerAvatar({
+  name,
+  shortName,
+  color,
+  logo,
+  size = 40,
+  className,
+}: {
+  name: string
+  shortName?: string
+  color: string
+  logo?: string
+  size?: number
+  className?: string
+}) {
+  const initials = (shortName || name).slice(0, 3).toUpperCase()
+  return logo ? (
+    <span
+      className={cn(
+        'flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-card ring-1 ring-black/5',
+        className,
+      )}
+      style={{ width: size, height: size, padding: Math.round(size * 0.1) }}
+    >
+      <img
+        src={logo}
+        alt={`${name} logo`}
+        className="h-full w-full object-contain"
+        draggable={false}
+      />
+    </span>
+  ) : (
+    <span
+      className={cn(
+        'flex shrink-0 items-center justify-center rounded-xl font-heading font-bold text-white',
+        className,
+      )}
+      style={{
+        width: size,
+        height: size,
+        backgroundColor: color,
+        fontSize: Math.max(10, Math.round(size * 0.3)),
+      }}
+      aria-hidden
+    >
+      {initials}
     </span>
   )
 }

@@ -114,7 +114,11 @@ function NextWindowCard({ settings }: { settings: Settings }) {
       </div>
       <Link to={`/upgrades/${next.upgrade.id}`} className="group flex flex-col gap-0.5">
         <span className="flex items-center gap-2 font-semibold group-hover:underline">
-          <CustomerChip color={customer?.color ?? '#999'} label={customer?.name ?? 'Unknown'} />
+          <CustomerChip
+            logo={customer?.logo}
+            color={customer?.color ?? '#999'}
+            label={customer?.name ?? 'Unknown'}
+          />
           <span className="text-muted">·</span>
           {ENV_LABEL[next.env]} <ArrowRight className="h-3.5 w-3.5 text-accent-text" />{' '}
           {next.upgrade.family}
@@ -276,6 +280,7 @@ function UpgradeCard({
             <div className="flex items-center justify-between gap-2">
               <Link to={`/customers/${customer?.id ?? ''}`} className="min-w-0 hover:underline">
                 <CustomerChip
+                  logo={customer?.logo}
                   color={customer?.color ?? '#999'}
                   label={customer?.name ?? 'Unknown'}
                   className="font-semibold"

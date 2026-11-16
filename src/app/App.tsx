@@ -12,6 +12,7 @@ import { ConfirmHost } from '@/components/ui/confirm'
 import { useReducedMotion } from '@/theme/motion'
 import { NewUpgradeDialog } from '@/features/plan/NewUpgradeDialog'
 import { ConflictDialog } from './ConflictDialog'
+import { ExportIcsDialog } from '@/features/ics/ExportIcsDialog'
 
 function Shell() {
   useShortcuts()
@@ -28,6 +29,7 @@ function Shell() {
       <NewUpgradeDialog />
       <ConfirmHost />
       <ConflictDialog />
+      <ExportIcsDialog />
     </div>
   )
 }

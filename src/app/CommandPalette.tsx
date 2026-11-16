@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
   Building2,
+  CalendarPlus,
   CloudDownload,
   Database,
   Download,
@@ -187,6 +188,15 @@ export function CommandPalette() {
                         onSelect={() => run(exportBackup)}
                       >
                         <Download className="h-4 w-4" /> Export JSON backup
+                      </Command.Item>
+                      <Command.Item
+                        className={itemCls}
+                        keywords={['ics', 'outlook', 'calendar']}
+                        onSelect={() =>
+                          run(() => useUi.getState().setIcsTarget({ kind: 'upcoming' }))
+                        }
+                      >
+                        <CalendarPlus className="h-4 w-4" /> Export upcoming to calendar (.ics)
                       </Command.Item>
                       <Command.Item
                         className={itemCls}

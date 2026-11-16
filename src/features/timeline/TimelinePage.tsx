@@ -12,7 +12,7 @@ import {
 } from '@dnd-kit/core'
 import { Popover } from 'radix-ui'
 import { format } from 'date-fns'
-import { AlertTriangle, CalendarRange, Crosshair, Search } from 'lucide-react'
+import { AlertTriangle, CalendarPlus, CalendarRange, Crosshair, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTracker, undo } from '@/store/tracker'
 import { useUi } from '@/store/ui'
@@ -323,6 +323,9 @@ export default function TimelinePage() {
         />
         <Button onClick={() => scrollToDay(today)}>
           <Crosshair className="h-4 w-4" /> Today
+        </Button>
+        <Button onClick={() => useUi.getState().setIcsTarget({ kind: 'upcoming' })}>
+          <CalendarPlus className="h-4 w-4" /> Export upcoming
         </Button>
         <Segmented<Scope>
           ariaLabel="Which upgrades"

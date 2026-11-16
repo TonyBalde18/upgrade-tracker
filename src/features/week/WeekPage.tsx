@@ -1,7 +1,9 @@
 import { motion } from 'motion/react'
 import { useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { AlarmClock, CalendarCheck2, ChevronDown, OctagonAlert } from 'lucide-react'
+import { AlarmClock, CalendarCheck2, CalendarPlus, ChevronDown, OctagonAlert } from 'lucide-react'
+import { useUi } from '@/store/ui'
+import { Button } from '@/components/ui/Button'
 import { useTracker } from '@/store/tracker'
 import { addDaysIso, diffDaysIso, formatDay, todayIn } from '@/lib/dates'
 import { agenda, blockedTasks, groupByDay, overdueTasks, type AgendaItem } from '@/lib/agenda'
@@ -147,6 +149,9 @@ export default function WeekPage() {
             ]}
           />
         </div>
+        <Button size="sm" onClick={() => useUi.getState().setIcsTarget({ kind: 'upcoming' })}>
+          <CalendarPlus className="h-3.5 w-3.5" /> Export upcoming
+        </Button>
         <Segmented<Span>
           ariaLabel="Period"
           value={span}

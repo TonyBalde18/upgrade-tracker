@@ -84,6 +84,7 @@ export const AgendaRow = memo(function AgendaRow({
               {ENV_LABEL[env]} window → {upgrade.family}
             </span>
             <CustomerChip
+              logo={customer?.logo}
               color={customer?.color ?? '#999'}
               label={customer?.name ?? 'Unknown'}
               className="text-xs text-muted"
@@ -140,7 +141,11 @@ export const AgendaRow = memo(function AgendaRow({
           {task.time && <span className="text-xs text-muted tabular">{task.time.start}</span>}
         </div>
         <div className="flex flex-wrap items-center gap-x-2 text-xs text-subtle">
-          <CustomerChip color={customer?.color ?? '#999'} label={customer?.name ?? 'Unknown'} />
+          <CustomerChip
+            logo={customer?.logo}
+            color={customer?.color ?? '#999'}
+            label={customer?.name ?? 'Unknown'}
+          />
           <span>·</span>
           <span>
             {task.owner} / {task.assignee}
