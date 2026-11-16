@@ -6,11 +6,12 @@ import { PageSkeleton } from '@/components/ui/PageSkeleton'
 
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 const CustomersPage = lazy(() => import('@/features/customers/CustomersPage'))
-const ComingSoon = lazy(() => import('@/features/placeholder/ComingSoon'))
+const NotFound = lazy(() => import('@/features/placeholder/NotFound'))
 const PlanPage = lazy(() => import('@/features/plan/PlanPage'))
 const TemplatePage = lazy(() => import('@/features/template/TemplatePage'))
 const TimelinePage = lazy(() => import('@/features/timeline/TimelinePage'))
 const CanvasPage = lazy(() => import('@/features/canvas/CanvasPage'))
+const WeekPage = lazy(() => import('@/features/week/WeekPage'))
 
 /** Route-level key: switching upgrades animates; picking another customer or changing the query does not. */
 function routeKey(pathname: string): string {
@@ -35,13 +36,13 @@ export function AnimatedRoutes() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/canvas" element={<CanvasPage />} />
             <Route path="/timeline" element={<TimelinePage />} />
-            <Route path="/week" element={<ComingSoon view="week" />} />
+            <Route path="/week" element={<WeekPage />} />
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/customers/:customerId" element={<CustomersPage />} />
             <Route path="/upgrades/:upgradeId" element={<PlanPage />} />
             <Route path="/template" element={<TemplatePage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="*" element={<ComingSoon view="notfound" />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </motion.div>

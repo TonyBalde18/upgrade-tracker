@@ -230,3 +230,20 @@ html.reduce-motion *::after {
   stroke-dasharray: 12 6;
   animation: ut-flow-dash 0.9s linear infinite;
 }
+
+/* the current phase in the flow bar: a red highlight sliding along (transform only) */
+@keyframes ut-flow-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+.flow-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: ut-flow-slide 1.8s ease-in-out infinite;
+}
