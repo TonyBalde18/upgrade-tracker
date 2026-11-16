@@ -11,6 +11,7 @@ import { TooltipProvider } from '@/components/ui/Tooltip'
 import { ConfirmHost } from '@/components/ui/confirm'
 import { useReducedMotion } from '@/theme/motion'
 import { NewUpgradeDialog } from '@/features/plan/NewUpgradeDialog'
+import { ConflictDialog } from './ConflictDialog'
 
 function Shell() {
   useShortcuts()
@@ -26,6 +27,7 @@ function Shell() {
       <CommandPalette />
       <NewUpgradeDialog />
       <ConfirmHost />
+      <ConflictDialog />
     </div>
   )
 }

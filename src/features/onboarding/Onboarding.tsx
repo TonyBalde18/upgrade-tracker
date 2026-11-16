@@ -120,7 +120,7 @@ export function Onboarding() {
                   <h2 className="font-semibold">Connect GitHub</h2>
                 </div>
                 <p className="text-sm text-muted">
-                  Sync with your private data repo (available from phase 6).
+                  Sync with your private data repo: Settings, Data & sync.
                 </p>
                 <Link
                   to="/settings"

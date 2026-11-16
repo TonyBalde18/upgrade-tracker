@@ -10,6 +10,7 @@ export const KEYS = {
   connection: 'connection',
   token: 'token',
   ui: 'ui',
+  sync: 'sync',
 } as const
 
 export function readString(key: string): string | null {
