@@ -200,4 +200,11 @@ export function emptyDoc(now: Date = new Date()): TrackerDoc {
 }
 
 /** Known ServiceNow family releases, newest last. Used for suggestions only; free text is allowed. */
-export const FAMILY_SUGGESTIONS = ['Washington DC', 'Xanadu', 'Yokohama', 'Zurich', 'Australia']
+export const FAMILY_SUGGESTIONS = [
+  'Washington DC',
+  'Xanadu',
+  'Yokohama',
+  'Zurich',
+  'Australia',
+  'Brazil',
+]
