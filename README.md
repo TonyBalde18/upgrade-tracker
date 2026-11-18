@@ -76,7 +76,7 @@ Firebase's free plan (Spark) is far more than this app needs. You don't need to 
 
 1. Left menu: **Build → Authentication** → **Get started**.
 2. Tab **Sign-in method** → **Google** → switch **Enable** on → choose your email as **Project support email** → **Save**.
-3. Tab **Settings** → **Authorized domains** → **Add domain** → type **`tonybalde18.github.io`** → **Add**. (`localhost` is already in the list, so the app also works on your PC.)
+3. Tab **Settings** → **Authorized domains** → **Add domain** → type **`tonybalde18.github.io`** → **Add**. (Not _Hosting → Add custom domain_: that is something else.) (`localhost` is already in the list, so the app also works on your PC.)
 
 ### 3.3 Create the database
 
@@ -212,6 +212,7 @@ Firebase console → **Firestore Database → Rules** → change the email addre
 | `Could not read package.json`                                  | The terminal is in the wrong folder: `cd "C:\Users\Tony Baldé\OneDrive - Incognit Clouds, Lda\P4M\upgrade-tracker"`                                      |
 | _Firebase is not set up yet_                                   | Fill in `src/firebase.config.ts` (section 3.5) and push                                                                                                  |
 | _This web address is not allowed to sign in yet_               | Add the domain in Firebase: **Authentication → Settings → Authorized domains** (section 3.2)                                                             |
+| Firebase asks to **Add custom domain**                         | That is Firebase Hosting, not needed. Cancel, then use **Authentication → Settings → Authorized domains → Add domain**                                   |
 | _Your browser blocked the Google sign-in window_               | Allow pop-ups for the site (icon at the right of the address bar), then click Sign in again                                                              |
 | _Google sign-in is not enabled_                                | **Authentication → Sign-in method → Google → Enable**                                                                                                    |
 | **No access** after signing in                                 | Wrong Google account, or the email in the database rules is different (section 3.4). Sign out and use the right account                                  |
