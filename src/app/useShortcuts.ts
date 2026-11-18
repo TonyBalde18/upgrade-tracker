@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { NAV } from './nav'
 import { useUi } from '@/store/ui'
 import { redo, undo } from '@/store/tracker'
-import { saveNow } from '@/store/persistence'
+import { saveNow } from '@/store/saveControl'
 
 function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false

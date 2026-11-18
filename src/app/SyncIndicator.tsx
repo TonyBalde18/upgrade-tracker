@@ -2,17 +2,15 @@ import { AnimatePresence, motion } from 'motion/react'
 import { AlertTriangle, Check, CircleDot, LoaderCircle, WifiOff } from 'lucide-react'
 import { useTracker } from '@/store/tracker'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { useConnection } from './useConnection'
-import { saveNow } from '@/store/persistence'
+import { saveNow } from '@/store/saveControl'
 import { formatDistanceToNowStrict } from 'date-fns'
 
 export function SyncIndicator() {
   const sync = useTracker((s) => s.sync)
   const pending = useTracker((s) => s.pendingChanges.length)
-  const { mode } = useConnection()
 
   let icon = <Check className="h-3.5 w-3.5" />
-  let label = mode === 'local' ? 'Saved locally' : 'Saved'
+  let label = 'Saved'
   let tone = 'text-success'
   switch (sync.status) {
     case 'unsaved':
@@ -36,7 +34,7 @@ export function SyncIndicator() {
       tone = 'text-warning'
       break
     case 'idle':
-      label = mode === 'local' ? 'Local' : 'Not loaded'
+      label = 'Not loaded'
       tone = 'text-subtle'
       break
   }

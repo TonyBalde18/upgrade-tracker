@@ -7,11 +7,11 @@ import { AnimatedRoutes } from './AnimatedRoutes'
 import { CommandPalette } from './CommandPalette'
 import { useShortcuts } from './useShortcuts'
 import { useAppliedTheme } from './ThemeApplier'
+import { AuthGate } from './AuthGate'
 import { TooltipProvider } from '@/components/ui/Tooltip'
 import { ConfirmHost } from '@/components/ui/confirm'
 import { useReducedMotion } from '@/theme/motion'
 import { NewUpgradeDialog } from '@/features/plan/NewUpgradeDialog'
-import { ConflictDialog } from './ConflictDialog'
 import { ExportIcsDialog } from '@/features/ics/ExportIcsDialog'
 
 function Shell() {
@@ -27,8 +27,6 @@ function Shell() {
       </div>
       <CommandPalette />
       <NewUpgradeDialog />
-      <ConfirmHost />
-      <ConflictDialog />
       <ExportIcsDialog />
     </div>
   )
@@ -41,10 +39,13 @@ export function App() {
     // "always" keeps opacity fades but drops movement, as asked for reduced motion
     <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
       <TooltipProvider delayDuration={350}>
-        {/* Hash routing: deep links and refresh work on GitHub Pages without a 404 page */}
-        <HashRouter>
-          <Shell />
-        </HashRouter>
+        <AuthGate>
+          {/* Hash routing: deep links and refresh work on GitHub Pages without a 404 page */}
+          <HashRouter>
+            <Shell />
+          </HashRouter>
+        </AuthGate>
+        <ConfirmHost />
         <Toaster
           theme={theme}
           position="bottom-right"

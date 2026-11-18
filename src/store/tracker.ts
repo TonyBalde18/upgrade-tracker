@@ -241,7 +241,7 @@ export const useTracker = create<TrackerState>()(
   ),
 )
 
-/** "Kanton Zug" -> "KZ", "Acme Corp" -> "AC", "Globex" -> "GLO" */
+/** "Northwind Traders" -> "NT", "Acme Corp" -> "AC", "Globex" -> "GLO" */
 export function shortNameOf(name: string): string {
   const words = name.split(/\s+/).filter(Boolean)
   if (words.length >= 2)

@@ -2,10 +2,10 @@
 
 A personal web app to plan and track ServiceNow family-release upgrades (for example Zurich to Australia) for all your customers: a dashboard, a canvas view, a global week-by-week timeline, a day-by-day plan per customer, "My week", and calendar export for Outlook.
 
-- **Code** (this repository, public): `upgrade-tracker`, published with GitHub Pages at <https://tonybalde18.github.io/upgrade-tracker/>.
-- **Data** (private repository): `upgrade-tracker-data`, a single file `tracker.json` that the app reads and writes with your personal token.
+- **Code** (this repository, public): published with GitHub Pages at <https://tonybalde18.github.io/upgrade-tracker/>.
+- **Data**: in a Firebase (Google) database that only your Google account can open. You sign in with Google on the site; nothing is shown before that.
 
-> **Privacy.** This repository contains no customer data, no tokens and no secrets. Real data only lives in your browser and in the private data repository. The demo data uses fictional companies (Acme Corp, Globex…).
+> **Privacy.** This repository contains no customer data and no secrets. The Firebase settings in `src/firebase.config.ts` are public by design (every Firebase web app sends them to the browser); the data is protected by Google sign-in and the database rules. The demo data uses fictional companies (Acme Corp, Globex…).
 
 ---
 
@@ -13,9 +13,9 @@ A personal web app to plan and track ServiceNow family-release upgrades (for exa
 
 1. [Run it on your PC](#1-run-it-on-your-pc)
 2. [Publish it on GitHub Pages](#2-publish-it-on-github-pages)
-3. [Create the private data repository and the token](#3-create-the-private-data-repository-and-the-token)
-4. [Connect the app to GitHub](#4-connect-the-app-to-github)
-5. [Everyday tasks: backup, token renewal, updates](#5-everyday-tasks)
+3. [Set up Firebase (once)](#3-set-up-firebase-once)
+4. [Sign in and load your data](#4-sign-in-and-load-your-data)
+5. [Everyday tasks: backup, updates](#5-everyday-tasks)
 6. [Using the app](#6-using-the-app)
 7. [Troubleshooting](#7-troubleshooting)
 8. [For developers](#8-for-developers)
@@ -33,10 +33,10 @@ npm install
 npm run dev
 ```
 
-Open the address it prints, usually <http://localhost:5173/>.
+Open the address it prints, usually <http://localhost:5173/>, and sign in with Google. Your PC uses the same database as the published site, so you see the same data.
 
-- The first time, the app opens in **Local mode** with a welcome screen. Click **Load demo data** to try everything with fictional customers, or paste your customer names (one per line).
 - Stop the app with `Ctrl+C` in the terminal.
+- Until Firebase is set up (section 3), the app shows _"Firebase is not set up yet"_.
 
 > If you see _"npm.ps1 cannot be loaded because running scripts is disabled"_, see [Troubleshooting](#7-troubleshooting).
 
@@ -56,49 +56,100 @@ Do this once.
 
 3. On GitHub, open the repository → **Settings** → **Pages** → **Build and deployment** → **Source: GitHub Actions**.
 4. Open the **Actions** tab. A run called **"Deploy to GitHub Pages"** checks the code (lint and tests), builds and publishes the site. It takes 1 to 2 minutes; a green tick means done.
-5. The site is at **<https://tonybalde18.github.io/upgrade-tracker/>** (the link is also shown on the finished run and in **Settings → Pages**).
+5. The site is at **<https://tonybalde18.github.io/upgrade-tracker/>**.
 
 From then on, every push to `main` publishes the new version automatically.
 
 ---
 
-## 3. Create the private data repository and the token
+## 3. Set up Firebase (once)
 
-### The data repository
+Firebase's free plan (Spark) is far more than this app needs. You don't need to add a payment method. The Firebase console changes its wording from time to time; if a button has a slightly different name, pick the closest one.
 
-1. On GitHub: **New repository** → name **`upgrade-tracker-data`** → **Private** → tick **Add a README file** (so the `main` branch exists) → **Create repository**.
-2. You don't need to add anything else: the app creates `tracker.json` on the first save.
+### 3.1 Create the project
 
-### The fine-grained token
+1. Go to <https://console.firebase.google.com> and sign in with the Google account you will use for the app.
+2. **Create a project** (or **Add project**) → name it **`upgrade-tracker`** → continue.
+3. Turn **Google Analytics off** (not needed) → **Create project** → **Continue**.
 
-1. On GitHub: your profile picture → **Settings** → **Developer settings** (at the bottom) → **Personal access tokens** → **Fine-grained tokens** → **Generate new token**.
-2. **Token name:** `upgrade-tracker`. **Expiration:** e.g. 90 days (put a reminder in your calendar).
-3. **Repository access:** **Only select repositories** → choose **`upgrade-tracker-data`** only.
-4. **Permissions** → **Repository permissions** → **Contents: Read and write**. (Metadata: Read-only is added automatically. Nothing else is needed.)
-5. **Generate token** and copy it right away (it starts with `github_pat_`). GitHub shows it only once.
+### 3.2 Turn on Google sign-in
 
-The token can only read and write files in your data repository. It cannot touch the code repository or your account.
+1. Left menu: **Build → Authentication** → **Get started**.
+2. Tab **Sign-in method** → **Google** → switch **Enable** on → choose your email as **Project support email** → **Save**.
+3. Tab **Settings** → **Authorized domains** → **Add domain** → type **`tonybalde18.github.io`** → **Add**. (`localhost` is already in the list, so the app also works on your PC.)
+
+### 3.3 Create the database
+
+1. Left menu: **Build → Firestore Database** → **Create database**.
+2. If asked for an edition, choose **Standard**. Keep the database ID **(default)**.
+3. **Location:** an EU location, e.g. **`eur3 (Europe)`** or **`europe-west6 (Zurich)`**. This can't be changed later.
+4. Choose **Start in production mode** → **Create**.
+
+### 3.4 Allow only your account
+
+1. In **Firestore Database**, open the **Rules** tab.
+2. Replace everything with the text below, and put **your own Google email address** where it says `YOUR-EMAIL@gmail.com`:
+
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /users/{uid}/{document=**} {
+         allow read, write: if request.auth != null
+           && request.auth.uid == uid
+           && request.auth.token.email == "YOUR-EMAIL@gmail.com"
+           && request.auth.token.email_verified == true;
+       }
+     }
+   }
+   ```
+
+3. Click **Publish**.
+
+Now only that Google account can read or write, and only its own data. Anyone else who signs in on the site sees _"No access"_ and no data. The email address stays in Firebase; it is not in the code.
+
+### 3.5 Connect the app to the project
+
+1. Click the **gear icon** next to _Project Overview_ → **Project settings** → tab **General**.
+2. Under **Your apps**, click the **web icon `</>`** → nickname **`upgrade-tracker`** → leave _Firebase Hosting_ unticked → **Register app**.
+3. Firebase shows a block of code with `const firebaseConfig = { apiKey: "...", authDomain: "...", ... }`. You need four values from it: **apiKey**, **authDomain**, **projectId** and **appId**. (You can find them again later on the same page.)
+4. Open `src/firebase.config.ts` in VS Code and fill them in, keeping the quotes:
+
+   ```ts
+   export const firebaseConfig = {
+     apiKey: 'AIza...',
+     authDomain: 'upgrade-tracker-xxxxx.firebaseapp.com',
+     projectId: 'upgrade-tracker-xxxxx',
+     appId: '1:1234567890:web:abc123',
+   }
+   ```
+
+5. Save the file, check that the app starts (`npm run dev`, sign in), then publish it:
+
+   ```powershell
+   git add src/firebase.config.ts
+   git commit -m "Connect the Firebase project"
+   git push
+   ```
+
+These values are not secret (they identify the project, they don't give access to it), so they can go in the public repository.
 
 ---
 
-## 4. Connect the app to GitHub
+## 4. Sign in and load your data
 
-1. In the app: **Settings → Data & sync**. Owner (`TonyBalde18`), repository (`upgrade-tracker-data`), branch (`main`) and file (`tracker.json`) are already filled in.
-2. Paste the token → **Save token**. It is stored only in this browser and shown masked.
-3. Click **Test connection**. You should see three green ticks:
-   - **Token**: valid, with its expiry date
-   - **Access to TonyBalde18/upgrade-tracker-data**: private repository
-   - **File tracker.json on main**: "not created yet" the first time, which is fine
-4. Switch **Mode** to **GitHub**.
-   - If GitHub has no data yet, the data in this browser is uploaded and `tracker.json` is created.
-   - If both sides have data, the app asks which one to keep.
-5. From now on, changes are saved to GitHub about 3 seconds after your last edit. The indicator at the top right shows **Unsaved → Saving… → Saved ✓**. `Ctrl+S` (or clicking the indicator) saves immediately.
+1. Open the site and click **Sign in with Google**. A Google window opens. If nothing happens, allow pop-ups for the site.
+2. The first time, the database is empty and you see the welcome screen:
+   - **Import JSON** loads a backup or a prepared `tracker.json` file.
+   - **Load demo data** fills it with fictional customers to try things out.
+   - Or paste your customer names, one per line.
+3. From now on everything saves automatically about a second after each change. The indicator at the top right shows **Saving… → Saved ✓**; `Ctrl+S` saves right away.
 
-Every save is a commit in the data repository with a readable message, e.g. `Acme Corp - Australia: "Upgrade DEV to Australia release" → Completed`, so you have a full history.
+**Several devices:** sign in on each one. Changes appear on the others within a second or two. If two devices change **different** customers or upgrades at the same time, both changes are kept. If they change the **same** upgrade at the same moment, the last save wins.
 
-**Using another browser or PC:** open the site, paste the token in Settings, switch to GitHub. The token is stored per browser and per site, so `localhost` and the published site each need it once.
+**Offline:** the app keeps working with the copy in your browser. Changes are sent as soon as you are back online, even if you closed the tab in between.
 
-**If two browsers edit at the same time**, the second one to save shows **"Data changed elsewhere"** and lets you **Reload from GitHub**, **Overwrite with mine**, or first **Download my version**. Nothing is ever overwritten silently.
+**Sign out:** Settings → Account & sync → **Sign out** (or `Ctrl+K` → _Sign out_). This also removes the offline copy from that browser, so use it on shared computers.
 
 ---
 
@@ -108,14 +159,7 @@ Every save is a commit in the data repository with a readable message, e.g. `Acm
 
 - **Settings → Backup → Export JSON** downloads everything (customers, logos, upgrades, template, settings) as one file. Keep it somewhere private: it contains customer data.
 - **Import JSON** restores a backup (it asks before replacing anything).
-- In GitHub mode, the data repository also keeps every previous version: open `tracker.json` on GitHub → **History**.
-
-### Renew the token (before or after it expires)
-
-1. GitHub → **Settings → Developer settings → Personal access tokens → Fine-grained tokens** → open `upgrade-tracker` → **Regenerate token** (or create a new one with the same settings as in step 3).
-2. In the app: **Settings → Data & sync → Forget token**, paste the new one → **Save token** → **Test connection**.
-
-If the token has expired, the sync indicator shows **Error** with "The token is invalid or has expired". Your edits stay in the browser and are sent once the new token is saved.
+- The free Firebase plan keeps **no version history**, so export a backup regularly, for example once a month and before big changes.
 
 ### Update the app
 
@@ -131,6 +175,10 @@ If the token has expired, the sync indicator shows **Error** with "The token is 
 
 2. GitHub Actions checks, builds and publishes it. Refresh the site after the green tick.
 
+### Allow a different Google account
+
+Firebase console → **Firestore Database → Rules** → change the email address → **Publish**. The data belongs to the account that created it: to move it to another account, export JSON with the old account and import it with the new one.
+
 ---
 
 ## 6. Using the app
@@ -144,13 +192,13 @@ If the token has expired, the sync indicator shows **Error** with "The token is 
 | **Upgrade plan**        | Windows (DEV / UAT / PROD, UAT can be N/A), the 24 steps grouped by phase with a day-by-day Gantt, recalculate / shift / duplicate / apply template, activity log                       |
 | **Customers**           | Details, ServiceNow contact, consultants, instance links, **logo**, upgrade history                                                                                                     |
 | **Template**            | The standard steps: owner, assignee, anchor window, offset, duration, kind, with a live preview                                                                                         |
-| **Settings**            | GitHub connection, backup, time zones, owner / assignee lists, statuses, theme, animations                                                                                              |
+| **Settings**            | Account and sign out, backup, time zones, owner / assignee lists, statuses, theme, animations                                                                                           |
 
 **Keyboard:** `Ctrl+K` command palette · `/` search · `N` new upgrade · `G` then `D`/`C`/`T`/`W` go to a view · `Ctrl+S` save · `Ctrl+Z` / `Ctrl+Shift+Z` undo / redo.
 
 **Calendar (.ics):** on a plan, **⋯ → Export to calendar**. On the Timeline or My week, **Export upcoming**. Choose _Windows only_, _Windows + milestones_ or _Everything_, then double-click the file (or in Outlook: **File → Open & Export → Import/Export → Import an iCalendar (.ics)** → **Import**). Exporting again later updates the same events instead of creating duplicates.
 
-**Customer logos:** Customers → pick a customer → **Logo**: upload, drag an image in, or click the box and press `Ctrl+V`. The image is shrunk to 128 px and stored only in your private data file.
+**Customer logos:** Customers → pick a customer → **Logo**: upload, drag an image in, or click the box and press `Ctrl+V`. PNG, JPG or WebP; the image is shrunk to 128 px and stored only in your database.
 
 ---
 
@@ -160,11 +208,13 @@ If the token has expired, the sync indicator shows **Error** with "The token is 
 | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm.ps1 cannot be loaded because running scripts is disabled` | Run once: `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`, answer `Y`, open a new terminal. (Or type `npm.cmd` instead of `npm`.) |
 | `Could not read package.json`                                  | The terminal is in the wrong folder: `cd "C:\Users\Tony Baldé\OneDrive - Incognit Clouds, Lda\P4M\upgrade-tracker"`                                      |
-| Test connection: **Invalid or expired token**                  | Create or regenerate the token (section 5) and paste it again                                                                                            |
-| Test connection: **Repository not found, or no access**        | Check owner and repository name, and that the token's repository access includes `upgrade-tracker-data`                                                  |
-| **Not allowed to write**                                       | The token needs **Contents: Read and write**                                                                                                             |
-| Sync indicator **Offline**                                     | Nothing to do: edits are kept and sent when GitHub is reachable again                                                                                    |
-| **Data changed elsewhere**                                     | Another browser saved in the meantime. Choose Reload, Overwrite, or Download my version first                                                            |
+| _Firebase is not set up yet_                                   | Fill in `src/firebase.config.ts` (section 3.5) and push                                                                                                  |
+| _This web address is not allowed to sign in yet_               | Add the domain in Firebase: **Authentication → Settings → Authorized domains** (section 3.2)                                                             |
+| _Your browser blocked the Google sign-in window_               | Allow pop-ups for the site (icon at the right of the address bar), then click Sign in again                                                              |
+| _Google sign-in is not enabled_                                | **Authentication → Sign-in method → Google → Enable**                                                                                                    |
+| **No access** after signing in                                 | Wrong Google account, or the email in the database rules is different (section 3.4). Sign out and use the right account                                  |
+| _Still waiting for the database_                               | No internet connection on a device that has never loaded the data. It loads by itself once online                                                        |
+| Sync indicator **Offline**                                     | Nothing to do: edits are kept and sent when you are back online                                                                                          |
 | The site shows an old version                                  | Refresh with `Ctrl+F5`, and check the last run in the **Actions** tab is green                                                                           |
 | OneDrive is slow or a build fails with "file locked"           | Pause OneDrive sync while running `npm install` or `npm run build` (the `node_modules` folder holds many small files)                                    |
 
@@ -172,33 +222,37 @@ If the token has expired, the sync indicator shows **Error** with "The token is 
 
 ## 8. For developers
 
-| Command           | What it does                                                                                                                                                        |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`     | Development server with hot reload                                                                                                                                  |
-| `npm run build`   | Type-check and build the site into `dist/` (adds the Content-Security-Policy)                                                                                       |
-| `npm run preview` | Serve the built site at <http://localhost:4173/upgrade-tracker/>                                                                                                    |
-| `npm run test`    | Unit tests (Vitest): dates and time zones, ISO weeks, template scheduling, N/A without UAT, ICS, migrations, GitHub sync and conflicts, smoke tests of every screen |
-| `npm run lint`    | ESLint                                                                                                                                                              |
-| `npm run format`  | Prettier                                                                                                                                                            |
+| Command           | What it does                                                                                                                                                      |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`     | Development server with hot reload                                                                                                                                |
+| `npm run build`   | Type-check and build the site into `dist/` (adds the Content-Security-Policy)                                                                                     |
+| `npm run preview` | Serve the built site at <http://localhost:4173/upgrade-tracker/>                                                                                                  |
+| `npm run test`    | Unit tests (Vitest): dates and time zones, ISO weeks, template scheduling, N/A without UAT, ICS, migrations, Firestore sync and merging, sign-in screens, screens |
+| `npm run lint`    | ESLint                                                                                                                                                            |
+| `npm run format`  | Prettier                                                                                                                                                          |
 
-**Stack:** React 19, TypeScript, Vite, Tailwind CSS 4, Motion, React Flow, Radix UI, dnd-kit, Zustand (+ Immer, zundo for undo/redo), date-fns / date-fns-tz, zod, cmdk, sonner, TanStack Virtual, lucide-react, self-hosted fonts.
+**Stack:** React 19, TypeScript, Vite, Tailwind CSS 4, Motion, React Flow, Radix UI, dnd-kit, Zustand (+ Immer, zundo for undo/redo), Firebase (Auth + Firestore), date-fns / date-fns-tz, zod, cmdk, sonner, TanStack Virtual, lucide-react, self-hosted fonts.
 
 **Structure**
 
 ```
 src/
-  app/            shell, routing, command palette, shortcuts, sync dialogs
+  app/            shell, sign-in gate, routing, command palette, shortcuts
   features/       dashboard, canvas, timeline, plan, week, customers, template, settings, ics
   lib/            dates, ics, template (scheduling), upgrade (logic), timeline, agenda,
-                  github (API client), storage, migrations, model (types + zod schema), images
-  store/          Zustand store, edit actions, persistence + GitHub sync engine
+                  cloud (Firebase setup, document split/merge), storage, migrations,
+                  model (types + zod schema), images
+  store/          Zustand store, edit actions, auth (Google sign-in), cloud (Firestore sync engine)
   theme/          brand.ts (Plat4mation colours and fonts), tokens, motion
   components/ui/  shared UI (buttons, dialogs, status badges, red flow…)
   demo/           fictional demo data
+  firebase.config.ts   the Firebase web app settings (public by design)
 ```
+
+**Storage:** Firestore at `users/<uid>/parts/<id>`: one `core` record (settings, template, order), one `c_<id>` per customer and one `u_<id>` per upgrade, each holding the JSON of that piece. Edits are merged per record (see `src/lib/cloud/parts.ts`). Data that can't be read is never overwritten.
 
 **Brand:** colours and fonts live in `src/theme/brand.ts` (signature red `#E1292C`, night `#0F0100`). To use the official font later, change `fonts` there and the `@fontsource` import in `src/main.tsx`.
 
 **Data model:** `src/lib/model/types.ts` (schema version 1). To change it: bump `SCHEMA_VERSION`, add a migration in `src/lib/migrations/index.ts`, update the zod schema and add a test.
 
-**Security:** strict Content-Security-Policy (only this site and `api.github.com`), no raw HTML from user data, only `http(s)` links are clickable, logos are re-encoded as small raster images, the token is sent only in the `Authorization` header and never logged.
+**Security:** Google sign-in plus Firestore rules that allow a single account; strict Content-Security-Policy (only this site, Google sign-in and Firestore); no raw HTML from user data; only `http(s)` links are clickable; logos are re-encoded as small raster images.

@@ -1,14 +1,14 @@
 import { motion } from 'motion/react'
 import { useState } from 'react'
-import { Link } from 'react-router'
 import { toast } from 'sonner'
-import { ArrowRight, Building2, Cloud, Database, FileUp } from 'lucide-react'
+import { ArrowRight, Building2, Database, FileUp, History } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Input'
 import { Card } from '@/components/ui/misc'
 import { RedFlow } from '@/components/ui/RedFlow'
 import { useTracker } from '@/store/tracker'
-import { importBackup, loadDemoData } from '@/app/actions'
+import { importBackup, loadDemoData, uploadLegacyData } from '@/app/actions'
+import { forgetLegacyDoc, readLegacyDoc } from '@/lib/storage/legacy'
 
 const container = {
   hidden: {},
@@ -22,6 +22,7 @@ const item = {
 /** First run: paste customers (one per line), load demo data, or restore a backup. */
 export function Onboarding() {
   const [text, setText] = useState('')
+  const [legacy, setLegacy] = useState(readLegacyDoc)
   const addCustomers = useTracker((s) => s.addCustomers)
   const names = text
     .split(/\r?\n/)
@@ -53,8 +54,8 @@ export function Onboarding() {
           <h1 className="text-4xl font-extrabold tracking-tight">Welcome to Upgrade Tracker</h1>
           <p className="mt-3 max-w-2xl text-muted">
             Plan and track ServiceNow family-release upgrades for all your customers in one place.
-            Your data stays private: in this browser (Local mode) or in your private GitHub data
-            repo.
+            Your data is private to your Google account and saved automatically on every device you
+            sign in with.
           </p>
         </motion.div>
 
@@ -113,23 +114,34 @@ export function Onboarding() {
                 <Button onClick={() => void importBackup()}>Import JSON</Button>
               </Card>
             </motion.div>
-            <motion.div variants={item}>
-              <Card className="flex flex-col gap-3 p-6">
-                <div className="flex items-center gap-3">
-                  <Cloud className="h-5 w-5 text-accent-text" />
-                  <h2 className="font-semibold">Connect GitHub</h2>
-                </div>
-                <p className="text-sm text-muted">
-                  Sync with your private data repo: Settings, Data & sync.
-                </p>
-                <Link
-                  to="/settings"
-                  className="text-sm font-medium text-accent-text hover:underline"
-                >
-                  Open Settings →
-                </Link>
-              </Card>
-            </motion.div>
+            {legacy && (
+              <motion.div variants={item}>
+                <Card className="flex flex-col gap-3 border-accent/40 p-6">
+                  <div className="flex items-center gap-3">
+                    <History className="h-5 w-5 text-accent-text" />
+                    <h2 className="font-semibold">Data from the previous version</h2>
+                  </div>
+                  <p className="text-sm text-muted">
+                    This browser still has {legacy.customers.length} customer(s) and{' '}
+                    {legacy.upgrades.length} upgrade(s) from before the switch to sign-in.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="primary" onClick={() => void uploadLegacyData()}>
+                      Upload it
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        forgetLegacyDoc()
+                        setLegacy(null)
+                      }}
+                    >
+                      Discard
+                    </Button>
+                  </div>
+                </Card>
+              </motion.div>
+            )}
           </div>
         </div>
       </motion.div>

@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { App } from './App'
 import { useTracker } from '@/store/tracker'
 import { buildDemoDoc } from '@/demo/demo-data'
 import { emptyDoc } from '@/lib/model/defaults'
 import { useUi } from '@/store/ui'
+import { useAuth } from '@/store/auth'
 
 // React needs this flag to run act() outside a test renderer
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -37,10 +38,62 @@ async function render(hash: string) {
 }
 
 let cleanup: (() => void) | null = null
+// a signed-in user whose data has loaded (Firebase itself is never loaded in tests)
+beforeEach(() => {
+  useAuth.setState({
+    status: 'signedIn',
+    user: { uid: 'test-uid', email: 'someone@example.com', name: 'Someone' },
+    error: null,
+    busy: false,
+  })
+  useTracker.getState().setHydrated()
+})
 afterEach(() => {
   cleanup?.()
   cleanup = null
   document.body.innerHTML = ''
+})
+
+describe('sign-in gate', () => {
+  it('shows the sign-in screen and no data when signed out', async () => {
+    useTracker.getState().replaceDoc(buildDemoDoc())
+    useAuth.setState({ status: 'signedOut', user: null })
+    const { el, root } = await render('#/')
+    cleanup = () => root.unmount()
+    expect(el.textContent).toContain('Sign in with Google')
+    expect(el.textContent).not.toContain('Acme Corp')
+  })
+
+  it('shows a sign-in error', async () => {
+    useAuth.setState({ status: 'signedOut', user: null, error: 'Pop-up blocked' })
+    const { el, root } = await render('#/')
+    cleanup = () => root.unmount()
+    expect(el.textContent).toContain('Pop-up blocked')
+  })
+
+  it('explains when the account has no access', async () => {
+    useTracker.getState().replaceDoc(buildDemoDoc())
+    useAuth.setState({ status: 'denied' })
+    const { el, root } = await render('#/')
+    cleanup = () => root.unmount()
+    expect(el.textContent).toContain('No access')
+    expect(el.textContent).toContain('someone@example.com')
+    expect(el.textContent).not.toContain('Acme Corp')
+  })
+
+  it('explains when Firebase is not set up', async () => {
+    useAuth.setState({ status: 'unconfigured', user: null })
+    const { el, root } = await render('#/')
+    cleanup = () => root.unmount()
+    expect(el.textContent).toContain('Firebase is not set up yet')
+  })
+
+  it('waits for the data before showing the app', async () => {
+    useTracker.setState({ hydrated: false })
+    const { el, root } = await render('#/')
+    cleanup = () => root.unmount()
+    expect(el.textContent).toContain('Loading your data')
+  })
 })
 
 describe('app smoke test', () => {
@@ -77,7 +130,6 @@ describe('app smoke test', () => {
 
   it('shows onboarding on first run', async () => {
     useTracker.getState().replaceDoc(emptyDoc())
-    useTracker.getState().setHydrated()
     const { el, root } = await render('#/')
     cleanup = () => root.unmount()
     expect(el.textContent).toContain('Welcome to Upgrade Tracker')

@@ -1,17 +1,18 @@
 /**
  * Thin, failure-proof wrapper around localStorage. Every access is wrapped in
- * try/catch (private windows, quota, blocked storage). Never stores secrets in
- * anything but the token key, and never logs values.
+ * try/catch (private windows, quota, blocked storage). Only small per-browser
+ * preferences are stored here; the data itself lives in Firestore.
  */
 const PREFIX = 'upgrade-tracker:'
 
 export const KEYS = {
-  doc: 'doc',
-  connection: 'connection',
-  token: 'token',
   ui: 'ui',
-  sync: 'sync',
+  /** the whole document, written by the previous (GitHub / local) version of the app */
+  legacyDoc: 'doc',
 } as const
+
+/** Keys of the previous version that are no longer used (including the GitHub token). */
+const RETIRED_KEYS = ['token', 'connection', 'sync']
 
 export function readString(key: string): string | null {
   try {
@@ -53,5 +54,18 @@ export function writeJson(key: string, value: unknown): boolean {
     return writeString(key, JSON.stringify(value))
   } catch {
     return false
+  }
+}
+
+/** Remove what the previous version stored and no longer needs (the old GitHub token first). */
+export function removeRetiredKeys(): void {
+  RETIRED_KEYS.forEach(remove)
+  try {
+    for (let i = window.localStorage.length - 1; i >= 0; i--) {
+      const k = window.localStorage.key(i)
+      if (k?.startsWith(`${PREFIX}${KEYS.legacyDoc}.unreadable-`)) window.localStorage.removeItem(k)
+    }
+  } catch {
+    /* ignore */
   }
 }

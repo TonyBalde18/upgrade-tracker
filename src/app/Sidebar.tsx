@@ -1,12 +1,12 @@
 import { motion } from 'motion/react'
 import { NavLink, useLocation } from 'react-router'
-import { Cloud, HardDrive, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, UserRound } from 'lucide-react'
 import { NAV, isActivePath } from './nav'
 import { useUi } from '@/store/ui'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { Kbd } from '@/components/ui/misc'
 import { cn } from '@/components/ui/cn'
-import { useConnection } from './useConnection'
+import { useAuth } from '@/store/auth'
 
 const ICON_SRC = `${import.meta.env.BASE_URL}icon-4.png`
 
@@ -14,7 +14,7 @@ export function Sidebar() {
   const collapsed = useUi((s) => s.sidebarCollapsed)
   const toggle = useUi((s) => s.toggleSidebar)
   const { pathname } = useLocation()
-  const connection = useConnection()
+  const email = useAuth((s) => s.user?.email ?? '')
 
   return (
     <motion.aside
@@ -78,26 +78,14 @@ export function Sidebar() {
       </nav>
 
       <div className="flex flex-col gap-1 border-t border-border p-2">
-        <Tooltip
-          content={collapsed ? (connection.mode === 'github' ? 'GitHub mode' : 'Local mode') : ''}
-          side="right"
-        >
+        <Tooltip content={collapsed ? `Signed in as ${email}` : ''} side="right">
           <NavLink
             to="/settings"
             className="flex h-9 items-center gap-3 rounded-lg px-3 text-xs text-subtle hover:bg-surface-2 hover:text-text"
+            aria-label={`Account: ${email}`}
           >
-            {connection.mode === 'github' ? (
-              <Cloud className="h-4 w-4 shrink-0" />
-            ) : (
-              <HardDrive className="h-4 w-4 shrink-0" />
-            )}
-            {!collapsed && (
-              <span className="truncate">
-                {connection.mode === 'github'
-                  ? `GitHub · ${connection.repo}`
-                  : 'Local mode (this browser)'}
-              </span>
-            )}
+            <UserRound className="h-4 w-4 shrink-0" />
+            {!collapsed && <span className="truncate">{email}</span>}
           </NavLink>
         </Tooltip>
         <button

@@ -3,24 +3,35 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath, URL } from 'node:url'
+import { firebaseConfig } from './src/firebase.config'
 
 /**
  * Strict Content-Security-Policy. GitHub Pages cannot send HTTP headers, so it is
  * injected as a <meta> tag. Only added to production builds: Vite's dev server
  * needs inline scripts and a websocket for hot reload.
+ * Besides this site, only Google sign-in and the Firestore database are allowed.
  */
+const authFrame = firebaseConfig.authDomain ? `https://${firebaseConfig.authDomain}` : "'none'"
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  // Google sign-in loads its helper script from apis.google.com
+  "script-src 'self' https://apis.google.com",
   // style attributes are used by the animation library and React Flow
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://api.github.com",
+  [
+    "connect-src 'self'",
+    'https://firestore.googleapis.com',
+    'https://identitytoolkit.googleapis.com',
+    'https://securetoken.googleapis.com',
+    'https://www.googleapis.com',
+  ].join(' '),
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'none'",
-  "frame-src 'none'",
+  // the sign-in helper frame of your Firebase project
+  `frame-src ${authFrame}`,
   "worker-src 'self' blob:",
   "manifest-src 'self'",
 ].join('; ')
@@ -47,7 +58,8 @@ export default defineConfig(({ command }) => ({
   },
   build: {
     target: 'es2022',
-    chunkSizeWarningLimit: 400,
+    // the Firestore SDK alone is ~440 kB (130 kB compressed) and can not be split further
+    chunkSizeWarningLimit: 460,
     rollupOptions: {
       onwarn(warning, warn) {
         // zod ships comments rollup cannot place; harmless
@@ -66,6 +78,15 @@ export default defineConfig(({ command }) => ({
             return 'vendor-flow'
           if (/[\\/]node_modules[\\/](zod|immer|zustand|zundo|date-fns|date-fns-tz)[\\/]/.test(id))
             return 'vendor-data'
+          // Firebase: loaded on demand after the first screen is shown, in two parallel files
+          if (
+            /[\\/]node_modules[\\/](@firebase[\\/](firestore|webchannel-wrapper)|firebase[\\/]firestore)[\\/]/.test(
+              id,
+            )
+          )
+            return 'vendor-firestore'
+          if (/[\\/]node_modules[\\/](firebase|@firebase|idb)[\\/]/.test(id))
+            return 'vendor-firebase'
           // used only by lazily loaded pages: leave them with those pages
           if (/[\\/]node_modules[\\/](@fontsource-variable|@dnd-kit|@tanstack)[\\/]/.test(id))
             return undefined

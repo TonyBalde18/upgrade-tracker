@@ -26,7 +26,7 @@ import { formatInZone, zoneAbbr } from '@/lib/dates'
 import type { MotionPref, ThemePref } from '@/lib/model/types'
 
 const SECTIONS = [
-  { id: 'data', label: 'Data & sync', icon: Cloud },
+  { id: 'data', label: 'Account & sync', icon: Cloud },
   { id: 'backup', label: 'Backup', icon: Database },
   { id: 'time', label: 'Time & dates', icon: Clock },
   { id: 'appearance', label: 'Appearance', icon: Palette },
@@ -77,7 +77,7 @@ function BackupSection() {
       id="backup"
       title="Backup"
       icon={<Database className="h-4 w-4" />}
-      description="Works in both modes. Exports contain customer data: keep them private."
+      description="Exports contain customer data: keep them private."
     >
       <div className="flex flex-wrap gap-2">
         <Button onClick={exportBackup}>
@@ -90,7 +90,7 @@ function BackupSection() {
           <Database className="h-4 w-4" /> Load demo data
         </Button>
         <Button variant="danger" className="ml-auto" onClick={() => void clearAllData()}>
-          <Trash2 className="h-4 w-4" /> Clear local data
+          <Trash2 className="h-4 w-4" /> Delete all data
         </Button>
       </div>
     </Section>
@@ -232,9 +232,9 @@ export default function SettingsPage() {
           wrap={(children) => (
             <Section
               id="data"
-              title="Data & sync"
+              title="Account & sync"
               icon={<Cloud className="h-4 w-4" />}
-              description="Where your data lives. These settings stay in this browser and are never written to the data file."
+              description="Who is signed in and where your data is saved."
             >
               {children}
             </Section>

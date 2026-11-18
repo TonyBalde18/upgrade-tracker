@@ -6,11 +6,11 @@ import { useNavigate } from 'react-router'
 import {
   Building2,
   CalendarPlus,
-  CloudDownload,
   Database,
   Download,
   FileUp,
   ListTodo,
+  LogOut,
   Monitor,
   Moon,
   PanelLeft,
@@ -25,8 +25,8 @@ import {
 import { NAV } from './nav'
 import { useUi } from '@/store/ui'
 import { redo, undo, useTracker } from '@/store/tracker'
-import { pull, saveNow } from '@/store/persistence'
-import { exportBackup, importBackup, loadDemoData } from './actions'
+import { saveNow } from '@/store/saveControl'
+import { confirmSignOut, exportBackup, importBackup, loadDemoData } from './actions'
 import { Kbd } from '@/components/ui/misc'
 
 const itemCls =
@@ -129,13 +129,6 @@ export function CommandPalette() {
                         <Save className="h-4 w-4" /> Save now
                         <Kbd className="ml-auto">Ctrl S</Kbd>
                       </Command.Item>
-                      <Command.Item
-                        className={itemCls}
-                        keywords={['github', 'sync', 'refresh', 'reload']}
-                        onSelect={() => run(() => void pull({ silent: false }))}
-                      >
-                        <CloudDownload className="h-4 w-4" /> Pull latest from GitHub
-                      </Command.Item>
                       <Command.Item className={itemCls} onSelect={() => run(undo)}>
                         <Undo2 className="h-4 w-4" /> Undo
                         <Kbd className="ml-auto">Ctrl Z</Kbd>
@@ -211,6 +204,13 @@ export function CommandPalette() {
                         onSelect={() => run(() => void loadDemoData())}
                       >
                         <Database className="h-4 w-4" /> Load demo data
+                      </Command.Item>
+                      <Command.Item
+                        className={itemCls}
+                        keywords={['logout', 'log out', 'account', 'google']}
+                        onSelect={() => run(() => void confirmSignOut())}
+                      >
+                        <LogOut className="h-4 w-4" /> Sign out
                       </Command.Item>
                     </Command.Group>
 
