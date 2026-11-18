@@ -1,9 +1,9 @@
+import { ReleasePath } from '@/components/ui/Release'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import {
-  ArrowRight,
   Building2,
   ClipboardPaste,
   ExternalLink,
@@ -332,8 +332,7 @@ function CustomerEditor({ customer }: { customer: Customer }) {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 text-sm font-semibold">
-                      {u.fromFamily} <ArrowRight className="h-3.5 w-3.5 text-accent-text" />{' '}
-                      {u.family}
+                      <ReleasePath from={u.fromFamily} to={u.family} size={18} />
                       <span className="text-xs font-normal text-subtle">· {u.cycle}</span>
                     </div>
                     <div className="text-xs text-muted">

@@ -192,11 +192,13 @@ Firebase console → **Firestore Database → Rules** → change the email addre
 | **Upgrade plan**        | Windows (DEV / UAT / PROD, UAT can be N/A), the 24 steps grouped by phase with a day-by-day Gantt, recalculate / shift / duplicate / apply template, activity log                       |
 | **Customers**           | Details, ServiceNow contact, consultants, instance links, **logo**, upgrade history                                                                                                     |
 | **Template**            | The standard steps: owner, assignee, anchor window, offset, duration, kind, with a live preview                                                                                         |
-| **Settings**            | Account and sign out, backup, time zones, owner / assignee lists, statuses, theme, animations                                                                                           |
+| **Settings**            | Account and sign out, backup, time zones, release logos, owner / assignee lists, statuses, theme, animations                                                                            |
 
 **Keyboard:** `Ctrl+K` command palette · `/` search · `N` new upgrade · `G` then `D`/`C`/`T`/`W` go to a view · `Ctrl+S` save · `Ctrl+Z` / `Ctrl+Shift+Z` undo / redo.
 
 **Calendar (.ics):** on a plan, **⋯ → Export to calendar**. On the Timeline or My week, **Export upcoming**. Choose _Windows only_, _Windows + milestones_ or _Everything_, then double-click the file (or in Outlook: **File → Open & Export → Import/Export → Import an iCalendar (.ics)** → **Import**). Exporting again later updates the same events instead of creating duplicates.
+
+**Release logos:** Settings → **Releases**: a logo per ServiceNow release (Zurich, Australia, Brazil…), shown next to the release name on plans, the dashboard, the timeline and the canvas. A square badge works best; crop wide banners first.
 
 **Customer logos:** Customers → pick a customer → **Logo**: upload, drag an image in, or click the box and press `Ctrl+V`. PNG, JPG or WebP; the image is shrunk to 128 px and stored only in your database.
 

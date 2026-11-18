@@ -9,6 +9,7 @@ import {
   Clock,
   Tags,
   Trash2,
+  Rocket,
   Users,
 } from 'lucide-react'
 import { useTracker } from '@/store/tracker'
@@ -22,6 +23,7 @@ import { TimeZoneSelect } from '@/components/ui/TimeZoneSelect'
 import { PeopleListEditor } from './PeopleListEditor'
 import { DataSection } from './DataSection'
 import { StatusListEditor } from './StatusListEditor'
+import { ReleasesSection } from './ReleasesSection'
 import { formatInZone, zoneAbbr } from '@/lib/dates'
 import type { MotionPref, ThemePref } from '@/lib/model/types'
 
@@ -30,6 +32,7 @@ const SECTIONS = [
   { id: 'backup', label: 'Backup', icon: Database },
   { id: 'time', label: 'Time & dates', icon: Clock },
   { id: 'appearance', label: 'Appearance', icon: Palette },
+  { id: 'releases', label: 'Releases', icon: Rocket },
   { id: 'people', label: 'Owners & assignees', icon: Users },
   { id: 'statuses', label: 'Statuses', icon: Tags },
 ] as const
@@ -243,6 +246,14 @@ export default function SettingsPage() {
         <BackupSection />
         <TimeSection />
         <AppearanceSection />
+        <Section
+          id="releases"
+          title="Releases"
+          icon={<Rocket className="h-4 w-4" />}
+          description="A logo per ServiceNow release, shown next to the release name on plans, the dashboard, the timeline and the canvas. Stored in your private data."
+        >
+          <ReleasesSection />
+        </Section>
         <Section
           id="people"
           title="Owners & assignees"

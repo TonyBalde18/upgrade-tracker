@@ -1,3 +1,4 @@
+import { Release, ReleasePath } from '@/components/ui/Release'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo } from 'react'
 import { Link } from 'react-router'
@@ -121,7 +122,7 @@ function NextWindowCard({ settings }: { settings: Settings }) {
           />
           <span className="text-muted">·</span>
           {ENV_LABEL[next.env]} <ArrowRight className="h-3.5 w-3.5 text-accent-text" />{' '}
-          {next.upgrade.family}
+          <Release family={next.upgrade.family} size={18} />
         </span>
         <Tooltip
           content={`Original: ${formatDay(w.start.slice(0, 10))} ${w.start.slice(11)} ${zoneAbbr(w.timeZone, next.start)} (${w.timeZone})`}
@@ -295,8 +296,12 @@ function UpgradeCard({
               to={`/upgrades/${upgrade.id}`}
               className="mt-0.5 flex items-center gap-1.5 text-sm text-muted hover:text-text"
             >
-              {upgrade.fromFamily} <ArrowRight className="h-3.5 w-3.5 text-accent-text" />{' '}
-              <span className="font-medium text-text">{upgrade.family}</span>
+              <ReleasePath
+                from={upgrade.fromFamily}
+                to={upgrade.family}
+                size={18}
+                toClassName="font-medium text-text"
+              />
               <span className="text-subtle">· {upgrade.cycle}</span>
             </Link>
           </div>

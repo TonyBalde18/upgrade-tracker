@@ -1,3 +1,4 @@
+import { ReleasePath } from '@/components/ui/Release'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -431,8 +432,8 @@ function Body() {
                   </span>
                   <span>
                     <span className="text-subtle">Release</span>{' '}
-                    <b>
-                      {fromFamily} → {family}
+                    <b className="inline-flex">
+                      <ReleasePath from={fromFamily} to={family} />
                     </b>
                   </span>
                   <span>

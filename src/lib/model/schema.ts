@@ -15,6 +15,15 @@ const statusDef = z.object({
   category: z.enum(['planned', 'confirmed', 'active', 'done', 'blocked', 'cancelled', 'na']),
 })
 
+// raster images only (no SVG: it could carry scripts), and a size cap
+const logoDataUrl = z
+  .string()
+  .regex(
+    /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/,
+    'logo must be a PNG, WebP or JPEG data URL',
+  )
+  .max(200_000, 'logo is too large')
+
 const settings = z.object({
   displayTimeZone: z.string(),
   defaultWindowTimeZone: z.string(),
@@ -27,6 +36,7 @@ const settings = z.object({
   scheduleStatuses: z.array(statusDef).min(1),
   windowStatuses: z.array(statusDef).min(1),
   taskStatuses: z.array(statusDef).min(1),
+  releaseLogos: z.record(z.string(), logoDataUrl).optional(),
 })
 
 const customer = z.object({
@@ -39,15 +49,7 @@ const customer = z.object({
   instances: z.object({ dev: z.string(), uat: z.string(), prod: z.string() }),
   notes: z.string(),
   active: z.boolean(),
-  // raster images only (no SVG: it could carry scripts), and a size cap
-  logo: z
-    .string()
-    .regex(
-      /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/,
-      'logo must be a PNG, WebP or JPEG data URL',
-    )
-    .max(200_000, 'logo is too large')
-    .optional(),
+  logo: logoDataUrl.optional(),
 })
 
 const phase = z.enum(['Preparation', 'DEV', 'UAT', 'Go-live', 'PROD', 'Hypercare'])

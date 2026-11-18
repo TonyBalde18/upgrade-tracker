@@ -55,6 +55,11 @@ export interface Settings {
   scheduleStatuses: StatusDef[]
   windowStatuses: StatusDef[]
   taskStatuses: StatusDef[]
+  /**
+   * Logo per ServiceNow release ("Australia" -> small raster data URL), set in Settings.
+   * Optional: documents without it are valid. Looked up case-insensitively.
+   */
+  releaseLogos?: Record<string, string>
 }
 
 export interface Customer {

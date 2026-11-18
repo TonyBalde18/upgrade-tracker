@@ -1,3 +1,4 @@
+import { ReleaseIcon } from '@/components/ui/Release'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { DropdownMenu } from 'radix-ui'
@@ -283,6 +284,7 @@ export default function PlanPage() {
             />
           </Link>
           <h1 className="flex flex-wrap items-center gap-1 text-xl font-bold">
+            <ReleaseIcon family={upgrade.fromFamily} size={26} className="mr-1" />
             <HeadingInput
               value={upgrade.fromFamily}
               label="From release"
@@ -290,6 +292,7 @@ export default function PlanPage() {
               className="text-muted"
             />
             <ArrowRight className="h-4 w-4 text-accent-text" aria-label="to" />
+            <ReleaseIcon family={upgrade.family} size={26} className="mr-1" />
             <HeadingInput
               value={upgrade.family}
               label="Target release"

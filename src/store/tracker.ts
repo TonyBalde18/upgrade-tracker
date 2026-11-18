@@ -15,6 +15,7 @@ import { emptyDoc } from '@/lib/model/defaults'
 import type { Customer, Settings, StatusDef, StatusListKey, TrackerDoc } from '@/lib/model/types'
 import { newId } from '@/lib/id'
 import { customerColors } from '@/theme/brand'
+import { withReleaseLogo } from '@/lib/releases'
 
 export type SyncStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error' | 'offline'
 
@@ -56,6 +57,9 @@ export interface TrackerState {
 
   /** Rename an owner/assignee everywhere it is used (list, template defaults, tasks). */
   renamePerson: (kind: 'owners' | 'assignees', from: string, to: string) => void
+
+  /** Set or remove (undefined) the logo of a ServiceNow release. */
+  setReleaseLogo: (family: string, logo: string | undefined) => void
 
   // customers
   addCustomers: (names: string[]) => number
@@ -193,6 +197,12 @@ export const useTracker = create<TrackerState>()(
             }
           },
         )
+      },
+
+      setReleaseLogo(family, logo) {
+        get().commit(`${logo ? 'Set' : 'Remove'} logo of release ${family}`, (d) => {
+          d.settings.releaseLogos = withReleaseLogo(d.settings.releaseLogos, family, logo)
+        })
       },
 
       addCustomers(names) {

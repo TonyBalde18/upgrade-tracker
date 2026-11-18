@@ -1,7 +1,7 @@
+import { ReleasePath } from '@/components/ui/Release'
 import { memo, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useDraggable } from '@dnd-kit/core'
-import { ArrowRight } from 'lucide-react'
 import type { Customer, EnvKey, Settings, Upgrade } from '@/lib/model/types'
 import { ENV_KEYS } from '@/lib/model/types'
 import { addDaysIso, diffDaysIso, formatDay, zoneAbbr, zonedToInstant } from '@/lib/dates'
@@ -188,7 +188,7 @@ export const TimelineRow = memo(function TimelineRow({
         </div>
         <div className="flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-1 truncate text-xs text-muted">
-            {upgrade.fromFamily} <ArrowRight className="h-3 w-3 shrink-0" /> {upgrade.family}
+            <ReleasePath from={upgrade.fromFamily} to={upgrade.family} size={14} />
           </span>
           <StatusBadge status={status} size="sm" />
         </div>

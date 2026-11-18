@@ -1,3 +1,4 @@
+import { ReleasePath } from '@/components/ui/Release'
 import { memo } from 'react'
 import {
   Handle,
@@ -11,7 +12,6 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Link } from 'react-router'
 import { format } from 'date-fns'
 import {
-  ArrowRight,
   Check,
   CircleDashed,
   GripVertical,
@@ -87,7 +87,7 @@ export const LaneNodeView = memo(function LaneNodeView({ data }: NodeProps<LaneN
           )}
         </div>
         <div className="flex items-center gap-1 text-xs text-muted">
-          {upgrade.fromFamily} <ArrowRight className="h-3 w-3 text-accent-text" /> {upgrade.family}
+          <ReleasePath from={upgrade.fromFamily} to={upgrade.family} size={14} />
           <span className="text-subtle">· {upgrade.cycle}</span>
         </div>
         <div className="flex items-center justify-between gap-2">
