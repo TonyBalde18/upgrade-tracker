@@ -49,10 +49,37 @@ function cspPlugin(): Plugin {
   }
 }
 
+/**
+ * Sign-in and the database are needed right after start-up, but they are loaded on
+ * demand (so the first screen shows first). Preload hints let the browser download
+ * them in parallel with the app instead of after it.
+ */
+function preloadCloudPlugin(): Plugin {
+  return {
+    name: 'preload-cloud',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (!ctx.bundle) return html
+        const wanted = (name: string, ids: string[]) =>
+          /^vendor-(firebase|firestore)$/.test(name) ||
+          ids.some((id) => /src[\\/](lib[\\/]cloud[\\/]firebase|store[\\/]cloud)\.ts$/.test(id))
+        const links = Object.values(ctx.bundle)
+          .filter((c) => c.type === 'chunk' && wanted(c.name, c.moduleIds))
+          .map(
+            (c) => `<link rel="modulepreload" crossorigin href="/upgrade-tracker/${c.fileName}">`,
+          )
+        return html.replace('</head>', `    ${links.join('\n    ')}\n  </head>`)
+      },
+    },
+  }
+}
+
 // GitHub Pages serves the app from https://<owner>.github.io/upgrade-tracker/
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/upgrade-tracker/' : '/',
-  plugins: [react(), tailwindcss(), cspPlugin()],
+  plugins: [react(), tailwindcss(), cspPlugin(), preloadCloudPlugin()],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

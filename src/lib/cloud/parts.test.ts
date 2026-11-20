@@ -23,6 +23,25 @@ describe('splitDoc / joinParts', () => {
     expect(joinParts(parts)).toEqual(doc)
   })
 
+  it('produces exactly the same text as plain JSON.stringify (cached pieces)', () => {
+    const doc = buildDemoDoc()
+    const core = {
+      schemaVersion: doc.schemaVersion,
+      updatedAt: doc.updatedAt,
+      settings: doc.settings,
+      template: doc.template,
+      customerOrder: doc.customers.map((c) => c.id),
+      upgradeOrder: doc.upgrades.map((u) => u.id),
+    }
+    const parts = splitDoc(doc)
+    expect(parts.get(CORE_ID)).toBe(JSON.stringify(core))
+    const u = doc.upgrades[0]!
+    expect(parts.get(`u_${u.id}`)).toBe(JSON.stringify(u))
+    // a new object (as Immer creates on edit) is converted again
+    const edited = { ...doc, upgrades: [{ ...u, notes: 'changed' }, ...doc.upgrades.slice(1)] }
+    expect(JSON.parse(splitDoc(edited).get(`u_${u.id}`)!).notes).toBe('changed')
+  })
+
   it('returns null when nothing is stored', () => {
     expect(joinParts(new Map())).toBeNull()
   })

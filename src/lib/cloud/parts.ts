@@ -31,19 +31,34 @@ interface CorePart {
   upgradeOrder: string[]
 }
 
+/**
+ * JSON text per object. The store is immutable (Immer): an edit creates new objects
+ * only along the changed path, so unchanged customers, upgrades, settings and the
+ * template keep their identity and are never converted twice.
+ */
+const jsonCache = new WeakMap<object, string>()
+function json(value: object): string {
+  let s = jsonCache.get(value)
+  if (s === undefined) {
+    s = JSON.stringify(value)
+    jsonCache.set(value, s)
+  }
+  return s
+}
+
 export function splitDoc(doc: TrackerDoc): Parts {
   const parts: Parts = new Map()
-  const core: CorePart = {
-    schemaVersion: doc.schemaVersion,
-    updatedAt: doc.updatedAt,
-    settings: doc.settings,
-    template: doc.template,
-    customerOrder: doc.customers.map((c) => c.id),
-    upgradeOrder: doc.upgrades.map((u) => u.id),
-  }
-  parts.set(CORE_ID, JSON.stringify(core))
-  for (const c of doc.customers) parts.set(CUSTOMER + c.id, JSON.stringify(c))
-  for (const u of doc.upgrades) parts.set(UPGRADE + u.id, JSON.stringify(u))
+  // same text as JSON.stringify(core) with the CorePart key order, built from cached pieces
+  const core =
+    `{"schemaVersion":${JSON.stringify(doc.schemaVersion)}` +
+    `,"updatedAt":${JSON.stringify(doc.updatedAt)}` +
+    `,"settings":${json(doc.settings)}` +
+    `,"template":${json(doc.template)}` +
+    `,"customerOrder":${JSON.stringify(doc.customers.map((c) => c.id))}` +
+    `,"upgradeOrder":${JSON.stringify(doc.upgrades.map((u) => u.id))}}`
+  parts.set(CORE_ID, core)
+  for (const c of doc.customers) parts.set(CUSTOMER + c.id, json(c))
+  for (const u of doc.upgrades) parts.set(UPGRADE + u.id, json(u))
   return parts
 }
 
