@@ -20,7 +20,7 @@ function Screen({ children }: { children: ReactNode }) {
         transition={{ type: 'spring', stiffness: 260, damping: 26 }}
         className="w-full max-w-md"
       >
-        <Card className="flex flex-col gap-5 p-8">
+        <Card className="flex flex-col gap-5 p-6 sm:p-8">
           <div className="flex items-center gap-3">
             <img src={ICON_SRC} alt="" className="h-10 w-10 rounded-lg" draggable={false} />
             <div>

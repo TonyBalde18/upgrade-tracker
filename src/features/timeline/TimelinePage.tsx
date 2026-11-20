@@ -39,7 +39,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { cn } from '@/components/ui/cn'
 import { useElementWidth } from '@/features/plan/gantt'
-import { LABEL_W, ROW_H, TimelineRow, type DragPreview } from './TimelineRow'
+import { labelWidthFor, ROW_H, TimelineRow, type DragPreview } from './TimelineRow'
 
 type Zoom = '6w' | 'q' | '6m' | 'y'
 const ZOOM_DAYS: Record<Zoom, number> = { '6w': 42, q: 91, '6m': 182, y: 365 }
@@ -68,6 +68,7 @@ export default function TimelinePage() {
   const [pending, setPending] = useState<PendingMove | null>(null)
 
   const { ref: scrollRef, width: viewW } = useElementWidth<HTMLDivElement>()
+  const LABEL_W = labelWidthFor(viewW)
   const trackViewW = Math.max(300, viewW - LABEL_W)
   const targetPx = trackViewW / ZOOM_DAYS[zoom]
   const [px, setPx] = useState(8)
@@ -290,7 +291,7 @@ export default function TimelinePage() {
 
   if (upgrades.length === 0) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <EmptyState
           icon={<CalendarRange />}
           title="No upgrades yet"
@@ -306,7 +307,7 @@ export default function TimelinePage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-hidden p-6">
+    <div className="flex h-full flex-col gap-4 overflow-hidden p-3 md:p-6">
       <div className="flex flex-wrap items-center gap-3">
         <div className="mr-2">
           <div className="eyebrow">All customers</div>
@@ -523,6 +524,7 @@ export default function TimelinePage() {
                   clash={clashUpgrades.has(u.id)}
                   preview={preview && preview.markerId.startsWith(`${u.id}:`) ? preview : null}
                   suppressClick={suppressClick}
+                  labelW={LABEL_W}
                 />
               ))}
               {rows.length === 0 && (

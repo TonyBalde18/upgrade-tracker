@@ -47,7 +47,7 @@ export function Onboarding() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="mx-auto flex max-w-5xl flex-col gap-8 px-8 py-14"
+        className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-8 md:px-8 md:py-14"
       >
         <motion.div variants={item}>
           <div className="eyebrow mb-3 text-accent-text">We make work flow</div>

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import {
+  ArrowLeft,
   Building2,
   ClipboardPaste,
   ExternalLink,
@@ -402,7 +403,7 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-5 overflow-hidden p-6">
+    <div className="flex h-full flex-col gap-5 overflow-hidden p-3 md:p-6">
       <SectionTitle
         eyebrow="Directory"
         title="Customers"
@@ -430,7 +431,13 @@ export default function CustomersPage() {
         />
       ) : (
         <div className="flex min-h-0 flex-1 gap-5">
-          <div className="flex w-80 shrink-0 flex-col gap-3">
+          {/* phones: the list, or the selected customer with a way back */}
+          <div
+            className={cn(
+              'w-full shrink-0 flex-col gap-3 md:flex md:w-80',
+              selected ? 'hidden' : 'flex',
+            )}
+          >
             <div className="relative">
               <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-subtle" />
               <Input
@@ -503,9 +510,22 @@ export default function CustomersPage() {
               )}
             </ul>
           </div>
-          <div className="min-w-0 flex-1 overflow-y-auto pr-1 pb-4">
+          <div
+            className={cn(
+              'min-w-0 flex-1 overflow-y-auto pr-1 pb-4',
+              selected ? 'block' : 'hidden md:block',
+            )}
+          >
             {selected ? (
-              <CustomerEditor customer={selected} />
+              <>
+                <Link
+                  to="/customers"
+                  className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-text md:hidden"
+                >
+                  <ArrowLeft className="h-4 w-4" /> All customers
+                </Link>
+                <CustomerEditor customer={selected} />
+              </>
             ) : (
               <EmptyState
                 icon={<Building2 />}

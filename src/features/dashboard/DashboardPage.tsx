@@ -416,7 +416,7 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8 pb-10">
-      <section className="relative isolate overflow-hidden border-b border-border px-8 pt-8 pb-7">
+      <section className="relative isolate overflow-hidden border-b border-border px-4 pt-5 pb-6 md:px-8 md:pt-8 md:pb-7">
         <div className="bg-pattern-grid absolute inset-0 -z-20" />
         <RedFlow className="-z-10" />
         <motion.div variants={list} initial="hidden" animate="show" className="flex flex-col gap-6">
@@ -480,7 +480,7 @@ export function DashboardPage() {
         </motion.div>
       </section>
 
-      <section className="px-8">
+      <section className="px-4 md:px-8">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <div className="eyebrow">In flight</div>

@@ -170,7 +170,7 @@ export default function PlanPage() {
 
   if (!upgrade) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <EmptyState
           icon={<Rocket />}
           title="Upgrade not found"
@@ -264,7 +264,7 @@ export default function PlanPage() {
   const caseUrl = safeUrl(upgrade.snCaseUrl)
 
   return (
-    <div className="relative flex h-full flex-col gap-4 overflow-hidden px-6 pt-5 pb-5">
+    <div className="relative flex h-full flex-col gap-4 overflow-hidden px-3 pt-4 pb-4 md:px-6 md:pt-5 md:pb-5">
       {/* header */}
       <div className="flex flex-wrap items-center gap-4">
         <Tooltip content="Back">

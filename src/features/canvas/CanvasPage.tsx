@@ -154,7 +154,7 @@ function Canvas() {
 
   if (upgrades.length === 0) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <EmptyState
           icon={<Workflow />}
           title="No upgrades yet"

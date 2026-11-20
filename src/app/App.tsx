@@ -10,6 +10,7 @@ import { useAutoStatus } from './useAutoStatus'
 import { useAppliedTheme } from './ThemeApplier'
 import { AuthGate } from './AuthGate'
 import { BackupReminder } from './BackupReminder'
+import { BottomNav } from './BottomNav'
 import { TooltipProvider } from '@/components/ui/Tooltip'
 import { ConfirmHost } from '@/components/ui/confirm'
 import { useReducedMotion } from '@/theme/motion'
@@ -25,10 +26,11 @@ function Shell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         <BackupReminder />
-        <main className="relative min-h-0 flex-1 overflow-auto">
+        <main className="relative min-h-0 flex-1 overflow-auto pb-16 md:pb-0">
           <AnimatedRoutes />
         </main>
       </div>
+      <BottomNav />
       <CommandPalette />
       <NewUpgradeDialog />
       <ExportIcsDialog />

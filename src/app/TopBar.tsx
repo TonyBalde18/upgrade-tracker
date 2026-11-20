@@ -21,8 +21,14 @@ export function TopBar() {
   return (
     <header
       data-print-hide
-      className="relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-bg/80 px-5 backdrop-blur"
+      className="relative z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-bg/80 px-3 backdrop-blur md:gap-3 md:px-5"
     >
+      <img
+        src={`${import.meta.env.BASE_URL}icon-4.png`}
+        alt="Upgrade Tracker"
+        className="h-8 w-8 shrink-0 rounded-md md:hidden"
+        draggable={false}
+      />
       <button
         type="button"
         onClick={() => openPalette()}
@@ -30,21 +36,37 @@ export function TopBar() {
         aria-label="Search customers, upgrades and steps"
       >
         <Search className="h-4 w-4" />
-        <span className="flex-1 text-left">Search customers, upgrades, steps…</span>
-        <Kbd>/</Kbd>
-        <Kbd>Ctrl K</Kbd>
+        <span className="flex-1 truncate text-left">
+          Search<span className="hidden sm:inline"> customers, upgrades, steps</span>…
+        </span>
+        <Kbd className="hidden md:inline-flex">/</Kbd>
+        <Kbd className="hidden md:inline-flex">Ctrl K</Kbd>
       </button>
 
       <div className="ml-auto flex items-center gap-1.5">
         <SyncIndicator />
-        <div className="mx-1 h-5 w-px bg-border" />
+        <div className="mx-1 hidden h-5 w-px bg-border sm:block" />
         <Tooltip content="Undo (Ctrl+Z)">
-          <Button variant="ghost" size="icon" onClick={undo} disabled={!canUndo} aria-label="Undo">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={undo}
+            disabled={!canUndo}
+            aria-label="Undo"
+            className="hidden sm:inline-flex"
+          >
             <Undo2 className="h-4 w-4" />
           </Button>
         </Tooltip>
         <Tooltip content="Redo (Ctrl+Shift+Z)">
-          <Button variant="ghost" size="icon" onClick={redo} disabled={!canRedo} aria-label="Redo">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={redo}
+            disabled={!canRedo}
+            aria-label="Redo"
+            className="hidden sm:inline-flex"
+          >
             <Redo2 className="h-4 w-4" />
           </Button>
         </Tooltip>
@@ -63,9 +85,14 @@ export function TopBar() {
           </Button>
         </Tooltip>
         <Tooltip content="New upgrade (N)">
-          <Button variant="primary" onClick={() => setNewUpgradeOpen(true)} className="ml-1">
+          <Button
+            variant="primary"
+            onClick={() => setNewUpgradeOpen(true)}
+            className="ml-1 px-2.5 sm:px-4"
+            aria-label="New upgrade"
+          >
             <Plus className="h-4 w-4" />
-            New upgrade
+            <span className="hidden sm:inline">New upgrade</span>
           </Button>
         </Tooltip>
       </div>

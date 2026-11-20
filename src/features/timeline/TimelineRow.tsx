@@ -15,6 +15,10 @@ import { CustomerAvatar } from '@/components/ui/misc'
 import { cn } from '@/components/ui/cn'
 
 export const LABEL_W = 320
+/** Narrow screens: logo and name only */
+export const LABEL_W_COMPACT = 150
+export const labelWidthFor = (viewW: number) =>
+  viewW > 0 && viewW < 640 ? LABEL_W_COMPACT : LABEL_W
 export const ROW_H = 56
 
 const ENV_TONE: Record<EnvKey, string> = {
@@ -142,6 +146,7 @@ export const TimelineRow = memo(function TimelineRow({
   clash,
   preview,
   suppressClick,
+  labelW = LABEL_W,
 }: {
   upgrade: Upgrade
   customer: Customer | undefined
@@ -153,7 +158,9 @@ export const TimelineRow = memo(function TimelineRow({
   clash: boolean
   preview: DragPreview | null
   suppressClick: () => boolean
+  labelW?: number
 }) {
+  const compact = labelW < LABEL_W
   const navigate = useNavigate()
   const spans = phaseSpans(upgrade, settings)
   const pct = Math.round(progressOf(upgrade.tasks, settings.taskStatuses) * 100)
@@ -175,14 +182,14 @@ export const TimelineRow = memo(function TimelineRow({
         to={`/upgrades/${upgrade.id}`}
         data-nopan
         className="sticky left-0 z-20 flex shrink-0 items-center gap-3 border-r border-border bg-surface px-3 transition-colors hover:bg-surface-2"
-        style={{ width: LABEL_W }}
+        style={{ width: labelW }}
       >
         <CustomerAvatar
           name={customer?.name ?? 'Unknown'}
           shortName={customer?.shortName}
           color={customer?.color ?? '#999'}
           logo={customer?.logo}
-          size={36}
+          size={compact ? 28 : 36}
           className={cn(!firstOfGroup && 'opacity-60')}
         />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -190,9 +197,9 @@ export const TimelineRow = memo(function TimelineRow({
             <span className={cn('truncate text-sm', firstOfGroup ? 'font-semibold' : 'text-muted')}>
               {customer?.name ?? 'Unknown'}
             </span>
-            <span className="shrink-0 text-xs text-subtle tabular">{pct}%</span>
+            {!compact && <span className="shrink-0 text-xs text-subtle tabular">{pct}%</span>}
           </div>
-          <div className="flex items-center justify-between gap-2">
+          <div className={cn('flex items-center justify-between gap-2', compact && 'hidden')}>
             <span className="flex min-w-0 items-center gap-1 truncate text-xs text-muted">
               <ReleasePath from={upgrade.fromFamily} to={upgrade.family} size={14} />
             </span>

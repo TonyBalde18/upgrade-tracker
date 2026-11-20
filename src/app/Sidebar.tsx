@@ -22,7 +22,7 @@ export function Sidebar() {
       initial={false}
       animate={{ width: collapsed ? 68 : 232 }}
       transition={{ type: 'spring', stiffness: 400, damping: 38 }}
-      className="relative z-20 flex h-full shrink-0 flex-col border-r border-border bg-surface"
+      className="relative z-20 hidden h-full shrink-0 flex-col border-r border-border bg-surface md:flex"
     >
       <div className="flex h-14 items-center gap-3 overflow-hidden px-4">
         <img src={ICON_SRC} alt="" className="h-8 w-8 shrink-0 rounded-md" draggable={false} />

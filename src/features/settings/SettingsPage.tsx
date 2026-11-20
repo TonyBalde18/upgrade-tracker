@@ -206,7 +206,7 @@ function AppearanceSection() {
 
 export default function SettingsPage() {
   return (
-    <div className="mx-auto flex max-w-6xl gap-8 p-8">
+    <div className="mx-auto flex max-w-6xl gap-8 p-4 md:p-8">
       <nav
         className="sticky top-0 hidden w-48 shrink-0 self-start pt-16 lg:block"
         aria-label="Settings sections"

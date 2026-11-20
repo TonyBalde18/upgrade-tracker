@@ -350,7 +350,7 @@ export default function TemplatePage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-hidden p-6">
+    <div className="flex h-full flex-col gap-4 overflow-hidden p-3 md:p-6">
       <SectionTitle
         eyebrow="Standard plan"
         title="Upgrade template"

@@ -124,7 +124,7 @@ export default function WeekPage() {
   const calls = items.filter((i) => i.kind === 'call').length
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-hidden p-6">
+    <div className="flex h-full flex-col gap-4 overflow-hidden p-3 md:p-6">
       <div className="flex flex-wrap items-end gap-3">
         <div className="mr-auto">
           <div className="eyebrow">Upcoming</div>

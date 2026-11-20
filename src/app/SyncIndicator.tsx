@@ -58,7 +58,7 @@ export function SyncIndicator() {
       <button
         type="button"
         onClick={saveNow}
-        className={`relative flex h-8 min-w-28 items-center gap-1.5 overflow-hidden rounded-full border border-border bg-surface-2 px-3 text-xs font-medium cursor-pointer ${tone}`}
+        className={`relative flex h-8 items-center gap-1.5 overflow-hidden rounded-full border border-border bg-surface-2 px-2.5 text-xs sm:min-w-28 sm:px-3 font-medium cursor-pointer ${tone}`}
         aria-live="polite"
         aria-label={`Sync status: ${label}`}
       >
@@ -72,7 +72,7 @@ export function SyncIndicator() {
             className="flex items-center gap-1.5"
           >
             {icon}
-            {label}
+            <span className="hidden sm:inline">{label}</span>
           </motion.span>
         </AnimatePresence>
       </button>
