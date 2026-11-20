@@ -6,6 +6,7 @@ import { TopBar } from './TopBar'
 import { AnimatedRoutes } from './AnimatedRoutes'
 import { CommandPalette } from './CommandPalette'
 import { useShortcuts } from './useShortcuts'
+import { useAutoStatus } from './useAutoStatus'
 import { useAppliedTheme } from './ThemeApplier'
 import { AuthGate } from './AuthGate'
 import { TooltipProvider } from '@/components/ui/Tooltip'
@@ -16,6 +17,7 @@ import { ExportIcsDialog } from '@/features/ics/ExportIcsDialog'
 
 function Shell() {
   useShortcuts()
+  useAutoStatus()
   return (
     <div className="flex h-full">
       <Sidebar />
