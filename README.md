@@ -149,6 +149,8 @@ These values are not secret (they identify the project, they don't give access t
 
 **Offline:** the app keeps working with the copy in your browser. Changes are sent as soon as you are back online, even if you closed the tab in between.
 
+**Install as an app:** open the site in Edge or Chrome → click the install icon at the right of the address bar (or **⋯ → Apps → Install Upgrade Tracker**). It then opens from the Start menu or taskbar in its own window, and also starts without a connection (showing the data from your last visit). New versions are picked up automatically the next time you open it online.
+
 **Sign out:** Settings → Account & sync → **Sign out** (or `Ctrl+K` → _Sign out_). This also removes the offline copy from that browser, so use it on shared computers.
 
 ---
