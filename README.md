@@ -198,6 +198,8 @@ Firebase console → **Firestore Database → Rules** → change the email addre
 
 **Calendar (.ics):** on a plan, **⋯ → Export to calendar**. On the Timeline or My week, **Export upcoming**. Choose _Windows only_, _Windows + milestones_ or _Everything_, then double-click the file (or in Outlook: **File → Open & Export → Import/Export → Import an iCalendar (.ics)** → **Import**). Exporting again later updates the same events instead of creating duplicates.
 
+**Excel (.xlsx) to share with a customer:** on a plan, **⋯ → Export to Excel** gives that upgrade in the same layout as the customer schedules (steps, owner, assignee, status, start and end, then one coloured column per day: green completed, purple in progress, light blue not started, red blocked; UP = upgrade, CL = clone). On the Timeline, **Export to Excel** (or `Ctrl+K` → _Export overview to Excel_) gives one file with an overview sheet of all active upgrades plus one sheet per customer. Notes and the activity log are never exported.
+
 **Release logos:** Settings → **Releases**: a logo per ServiceNow release (Zurich, Australia, Brazil…), shown next to the release name on plans, the dashboard, the timeline and the canvas. A square badge works best; crop wide banners first.
 
 **Customer logos:** Customers → pick a customer → **Logo**: upload, drag an image in, or click the box and press `Ctrl+V`. PNG, JPG or WebP; the image is shrunk to 128 px and stored only in your database.

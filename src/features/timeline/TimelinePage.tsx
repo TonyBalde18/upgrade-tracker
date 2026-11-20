@@ -1,3 +1,5 @@
+import { FileSpreadsheet } from 'lucide-react'
+import { exportOverviewExcel } from '@/features/excel/exportExcel'
 import { animate } from 'motion/react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -326,6 +328,9 @@ export default function TimelinePage() {
         </Button>
         <Button onClick={() => useUi.getState().setIcsTarget({ kind: 'upcoming' })}>
           <CalendarPlus className="h-4 w-4" /> Export upcoming
+        </Button>
+        <Button onClick={() => void exportOverviewExcel()}>
+          <FileSpreadsheet className="h-4 w-4" /> Export to Excel
         </Button>
         <Segmented<Scope>
           ariaLabel="Which upgrades"

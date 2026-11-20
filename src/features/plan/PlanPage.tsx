@@ -1,4 +1,6 @@
 import { ReleaseIcon } from '@/components/ui/Release'
+import { FileSpreadsheet } from 'lucide-react'
+import { exportUpgradeExcel } from '@/features/excel/exportExcel'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { DropdownMenu } from 'radix-ui'
@@ -407,6 +409,12 @@ export default function PlanPage() {
                   }
                 >
                   <CalendarPlus className="h-4 w-4" /> Export to calendar (.ics)…
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className={menuItem}
+                  onSelect={() => void exportUpgradeExcel(upgrade.id)}
+                >
+                  <FileSpreadsheet className="h-4 w-4" /> Export to Excel (.xlsx)
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="my-1 h-px bg-border" />
                 <DropdownMenu.Item

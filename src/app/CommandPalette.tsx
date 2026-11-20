@@ -8,6 +8,7 @@ import {
   CalendarPlus,
   Database,
   Download,
+  FileSpreadsheet,
   FileUp,
   ListTodo,
   LogOut,
@@ -28,6 +29,7 @@ import { redo, undo, useTracker } from '@/store/tracker'
 import { saveNow } from '@/store/saveControl'
 import { confirmSignOut, exportBackup, importBackup, loadDemoData } from './actions'
 import { Kbd } from '@/components/ui/misc'
+import { exportOverviewExcel } from '@/features/excel/exportExcel'
 
 const itemCls =
   'flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-text aria-selected:bg-surface-2 data-[selected=true]:bg-surface-2'
@@ -190,6 +192,13 @@ export function CommandPalette() {
                         }
                       >
                         <CalendarPlus className="h-4 w-4" /> Export upcoming to calendar (.ics)
+                      </Command.Item>
+                      <Command.Item
+                        className={itemCls}
+                        keywords={['excel', 'xlsx', 'overview', 'customer', 'share']}
+                        onSelect={() => run(() => void exportOverviewExcel())}
+                      >
+                        <FileSpreadsheet className="h-4 w-4" /> Export overview to Excel (.xlsx)
                       </Command.Item>
                       <Command.Item
                         className={itemCls}

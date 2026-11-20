@@ -58,8 +58,9 @@ export default defineConfig(({ command }) => ({
   },
   build: {
     target: 'es2022',
-    // the Firestore SDK alone is ~440 kB (130 kB compressed) and can not be split further
-    chunkSizeWarningLimit: 460,
+    // Largest files are loaded on demand only: Excel export (~850 kB, 250 kB compressed)
+    // and the Firestore SDK (~440 kB). Both are single libraries that can not be split further.
+    chunkSizeWarningLimit: 870,
     rollupOptions: {
       onwarn(warning, warn) {
         // zod ships comments rollup cannot place; harmless
@@ -87,6 +88,8 @@ export default defineConfig(({ command }) => ({
             return 'vendor-firestore'
           if (/[\\/]node_modules[\\/](firebase|@firebase|idb)[\\/]/.test(id))
             return 'vendor-firebase'
+          // Excel export: downloaded the first time you export
+          if (/[\\/]node_modules[\\/]exceljs[\\/]/.test(id)) return 'vendor-excel'
           // used only by lazily loaded pages: leave them with those pages
           if (/[\\/]node_modules[\\/](@fontsource-variable|@dnd-kit|@tanstack)[\\/]/.test(id))
             return undefined
