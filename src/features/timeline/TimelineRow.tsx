@@ -11,10 +11,10 @@ import { progressOf } from '@/lib/template/schedule'
 import { phaseTone } from '@/theme/brand'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { CustomerChip } from '@/components/ui/misc'
+import { CustomerAvatar } from '@/components/ui/misc'
 import { cn } from '@/components/ui/cn'
 
-export const LABEL_W = 300
+export const LABEL_W = 320
 export const ROW_H = 56
 
 const ENV_TONE: Record<EnvKey, string> = {
@@ -174,23 +174,30 @@ export const TimelineRow = memo(function TimelineRow({
       <Link
         to={`/upgrades/${upgrade.id}`}
         data-nopan
-        className="sticky left-0 z-20 flex shrink-0 flex-col justify-center gap-1 border-r border-border bg-surface px-4 transition-colors hover:bg-surface-2"
+        className="sticky left-0 z-20 flex shrink-0 items-center gap-3 border-r border-border bg-surface px-3 transition-colors hover:bg-surface-2"
         style={{ width: LABEL_W }}
       >
-        <div className="flex items-center justify-between gap-2">
-          <CustomerChip
-            logo={customer?.logo}
-            color={customer?.color ?? '#999'}
-            label={customer?.name ?? 'Unknown'}
-            className={cn('text-sm', firstOfGroup ? 'font-semibold' : 'text-muted')}
-          />
-          <span className="shrink-0 text-xs text-subtle tabular">{pct}%</span>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-1 truncate text-xs text-muted">
-            <ReleasePath from={upgrade.fromFamily} to={upgrade.family} size={14} />
-          </span>
-          <StatusBadge status={status} size="sm" />
+        <CustomerAvatar
+          name={customer?.name ?? 'Unknown'}
+          shortName={customer?.shortName}
+          color={customer?.color ?? '#999'}
+          logo={customer?.logo}
+          size={36}
+          className={cn(!firstOfGroup && 'opacity-60')}
+        />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className={cn('truncate text-sm', firstOfGroup ? 'font-semibold' : 'text-muted')}>
+              {customer?.name ?? 'Unknown'}
+            </span>
+            <span className="shrink-0 text-xs text-subtle tabular">{pct}%</span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex min-w-0 items-center gap-1 truncate text-xs text-muted">
+              <ReleasePath from={upgrade.fromFamily} to={upgrade.family} size={14} />
+            </span>
+            <StatusBadge status={status} size="sm" />
+          </div>
         </div>
       </Link>
       <div className="relative" style={{ width }}>

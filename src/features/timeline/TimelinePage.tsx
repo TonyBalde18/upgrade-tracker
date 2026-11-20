@@ -490,6 +490,11 @@ export default function TimelinePage() {
                 }}
               />
             ))}
+            {/* today: a light band over the whole day, and the line at the current time */}
+            <div
+              className="absolute top-0 bottom-0 bg-accent/[0.07]"
+              style={{ left: diffDaysIso(today, range.start) * px, width: Math.max(2, px) }}
+            />
             <div
               className="absolute top-0 bottom-0 w-0.5 bg-accent shadow-[0_0_12px_var(--ut-accent-glow)]"
               style={{ left: todayX - 1 }}
