@@ -8,6 +8,7 @@ import { useTracker } from '@/store/tracker'
 import { saveNow } from '@/store/saveControl'
 import { signOutAndClear } from '@/store/auth'
 import { confirm } from '@/components/ui/confirm'
+import { useBackupReminder } from '@/store/backupReminder'
 
 function hasData(): boolean {
   const { doc } = useTracker.getState()
@@ -51,6 +52,7 @@ export async function clearAllData(): Promise<void> {
 
 export function exportBackup(): void {
   exportJson(useTracker.getState().doc)
+  useBackupReminder.getState().markBackedUp()
   toast.success('Backup downloaded', {
     description: 'Keep it somewhere private: it contains customer data.',
   })

@@ -7,6 +7,8 @@ const PREFIX = 'upgrade-tracker:'
 
 export const KEYS = {
   ui: 'ui',
+  /** when this browser last exported a JSON backup */
+  backup: 'backup',
   /** the whole document, written by the previous (GitHub / local) version of the app */
   legacyDoc: 'doc',
 } as const
