@@ -72,7 +72,7 @@ function Unit({ value, label }: { value: number; label: string }) {
 
 function NextWindowCard({ settings }: { settings: Settings }) {
   const doc = useTracker((s) => s.doc)
-  const now = useNow(1000)
+  const now = useNow(10_000)
   const next = useMemo(() => nextWindow(doc, now), [doc, now])
   const customer = next ? doc.customers.find((c) => c.id === next.upgrade.customerId) : undefined
 
@@ -87,12 +87,12 @@ function NextWindowCard({ settings }: { settings: Settings }) {
   const w = next.upgrade.windows[next.env]!
   const running = next.start <= now
   const ms = (running ? next.end : next.start).getTime() - now.getTime()
-  const s = Math.max(0, Math.floor(ms / 1000))
+  // whole minutes, rounded up: "0 min" only once the moment has come
+  const total = Math.max(0, Math.ceil(ms / 60_000))
   const parts = {
-    d: Math.floor(s / 86400),
-    h: Math.floor((s % 86400) / 3600),
-    m: Math.floor((s % 3600) / 60),
-    s: s % 60,
+    d: Math.floor(total / 1440),
+    h: Math.floor((total % 1440) / 60),
+    m: total % 60,
   }
 
   return (
@@ -111,7 +111,6 @@ function NextWindowCard({ settings }: { settings: Settings }) {
         <Unit value={parts.d} label="days" />
         <Unit value={parts.h} label="hours" />
         <Unit value={parts.m} label="min" />
-        <Unit value={parts.s} label="sec" />
       </div>
       <Link to={`/upgrades/${next.upgrade.id}`} className="group flex flex-col gap-0.5">
         <span className="flex items-center gap-2 font-semibold group-hover:underline">
