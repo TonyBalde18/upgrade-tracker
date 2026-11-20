@@ -144,6 +144,7 @@ describe('app smoke test', () => {
     '#/upgrades/demo-upg-1',
     '#/upgrades/demo-upg-2?task=demo-globex-step-21',
     '#/upgrades/missing',
+    '#/upgrades/demo-upg-1/print',
     '#/template',
     '#/canvas',
     '#/nope',
@@ -163,6 +164,11 @@ describe('app smoke test', () => {
     }
     if (hash.startsWith('#/upgrades/demo-upg-2')) expect(el.textContent).toContain('N/A')
     if (hash === '#/upgrades/missing') expect(el.textContent).toContain('Upgrade not found')
+    if (hash.endsWith('/print')) {
+      expect(el.textContent).toContain('Save as PDF')
+      expect(el.textContent).toContain('upgrade schedule')
+      expect(el.textContent).toContain('PROD window')
+    }
     if (hash === '#/template') expect(el.textContent).toContain('Live preview')
     if (hash === '#/timeline') {
       expect(el.textContent).toContain('Global timeline')

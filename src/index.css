@@ -247,3 +247,27 @@ html.reduce-motion *::after {
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
   animation: ut-flow-slide 1.8s ease-in-out infinite;
 }
+
+/* Printing (the plan's "Print / save as PDF" page): only the page content, A4 landscape, colours kept */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  html,
+  body,
+  #root,
+  main {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  [data-print-hide],
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

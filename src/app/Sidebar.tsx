@@ -18,6 +18,7 @@ export function Sidebar() {
 
   return (
     <motion.aside
+      data-print-hide
       initial={false}
       animate={{ width: collapsed ? 68 : 232 }}
       transition={{ type: 'spring', stiffness: 400, damping: 38 }}

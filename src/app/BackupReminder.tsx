@@ -24,6 +24,7 @@ export function BackupReminder() {
           exit={{ height: 0, opacity: 0 }}
           className="overflow-hidden border-b border-warning/30 bg-warning/10"
           role="status"
+          data-print-hide
         >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2 text-sm">
             <DatabaseBackup className="h-4 w-4 shrink-0 text-warning" />

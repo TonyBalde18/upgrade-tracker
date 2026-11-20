@@ -1,5 +1,5 @@
 import { ReleaseIcon } from '@/components/ui/Release'
-import { FileSpreadsheet } from 'lucide-react'
+import { FileSpreadsheet, Printer } from 'lucide-react'
 import { exportUpgradeExcel } from '@/features/excel/exportExcel'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
@@ -415,6 +415,12 @@ export default function PlanPage() {
                   onSelect={() => void exportUpgradeExcel(upgrade.id)}
                 >
                   <FileSpreadsheet className="h-4 w-4" /> Export to Excel (.xlsx)
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className={menuItem}
+                  onSelect={() => navigate(`/upgrades/${upgrade.id}/print`)}
+                >
+                  <Printer className="h-4 w-4" /> Print / save as PDF
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="my-1 h-px bg-border" />
                 <DropdownMenu.Item

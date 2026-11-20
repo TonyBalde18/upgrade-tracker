@@ -19,7 +19,10 @@ export function TopBar() {
   const ThemeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor
 
   return (
-    <header className="relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-bg/80 px-5 backdrop-blur">
+    <header
+      data-print-hide
+      className="relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-bg/80 px-5 backdrop-blur"
+    >
       <button
         type="button"
         onClick={() => openPalette()}
