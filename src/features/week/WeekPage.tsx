@@ -4,6 +4,8 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { AlarmClock, CalendarCheck2, CalendarPlus, ChevronDown, OctagonAlert } from 'lucide-react'
 import { useCustomerFilter, useUi } from '@/store/ui'
 import { CustomerFilter } from '@/components/ui/CustomerFilter'
+import { Select } from '@/components/ui/Select'
+import { readString, writeString } from '@/lib/storage/local'
 import { Button } from '@/components/ui/Button'
 import { useTracker } from '@/store/tracker'
 import { addDaysIso, diffDaysIso, formatDay, todayIn } from '@/lib/dates'
@@ -15,6 +17,8 @@ import { AgendaRow } from './AgendaRow'
 import { useNow } from '@/lib/useNow'
 
 type Span = '7' | '14' | '30'
+const EVERYONE = '__all__'
+const NOBODY = '__nobody__'
 
 type Row = { type: 'day'; date: string; count: number } | { type: 'item'; item: AgendaItem }
 
@@ -87,11 +91,24 @@ export default function WeekPage() {
   const customerIds = useMemo(() => customers.map((c) => c.id), [customers])
   const picked = useCustomerFilter(customerIds)
 
-  const filterDoc = useMemo(
-    () =>
-      picked ? { ...doc, upgrades: doc.upgrades.filter((u) => picked.has(u.customerId)) } : doc,
-    [doc, picked],
-  )
+  // "My tasks": only steps assigned to one person (windows stay visible)
+  const [person, setPersonState] = useState(() => readString('weekPerson') ?? '')
+  const setPerson = (p: string) => {
+    setPersonState(p)
+    writeString('weekPerson', p)
+  }
+  const people = settings.people
+  const who = person && person !== NOBODY && !people.includes(person) ? '' : person
+
+  const filterDoc = useMemo(() => {
+    let upgrades = picked ? doc.upgrades.filter((u) => picked.has(u.customerId)) : doc.upgrades
+    if (who)
+      upgrades = upgrades.map((u) => ({
+        ...u,
+        tasks: u.tasks.filter((t) => (who === NOBODY ? !t.assignedTo : t.assignedTo === who)),
+      }))
+    return { ...doc, upgrades }
+  }, [doc, picked, who])
   const overdue = useMemo(() => overdueTasks(filterDoc, today), [filterDoc, today])
   const blocked = useMemo(() => blockedTasks(filterDoc), [filterDoc])
   const items = useMemo(
@@ -135,6 +152,19 @@ export default function WeekPage() {
           </p>
         </div>
         <CustomerFilter />
+        <div className="w-44">
+          <Select
+            size="sm"
+            ariaLabel="Whose steps"
+            value={who || EVERYONE}
+            onChange={(v) => setPerson(v === EVERYONE ? '' : v)}
+            options={[
+              { value: EVERYONE, label: 'Everyone' },
+              ...people.map((p) => ({ value: p, label: `Assigned to ${p}` })),
+              { value: NOBODY, label: 'Not assigned' },
+            ]}
+          />
+        </div>
         <Button size="sm" onClick={() => useUi.getState().setIcsTarget({ kind: 'upcoming' })}>
           <CalendarPlus className="h-3.5 w-3.5" /> Export upcoming
         </Button>

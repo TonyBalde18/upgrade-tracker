@@ -6,6 +6,7 @@
 import { toast } from 'sonner'
 import type { Workbook } from 'exceljs'
 import { useTracker } from '@/store/tracker'
+import { useUi } from '@/store/ui'
 import { todayIn } from '@/lib/dates'
 import { isActiveUpgrade } from '@/lib/upgrade/logic'
 import { overviewRows, planModel, safeFileName, type PlanModel } from '@/lib/excel/model'
@@ -102,11 +103,19 @@ export function exportUpgradeExcel(upgradeId: string): Promise<void> {
   })
 }
 
-/** All active upgrades: an overview sheet, then one sheet per customer. */
+/**
+ * All active upgrades (of the customers chosen in the customer filter, if any): an
+ * overview sheet, then one sheet per upgrade.
+ */
 export function exportOverviewExcel(): Promise<void> {
   return run('the overview', async () => {
     const { doc } = useTracker.getState()
-    const upgrades = doc.upgrades.filter((u) => isActiveUpgrade(u, doc.settings))
+    const picked = new Set(
+      useUi.getState().customerFilter.filter((id) => doc.customers.some((c) => c.id === id)),
+    )
+    const upgrades = doc.upgrades.filter(
+      (u) => isActiveUpgrade(u, doc.settings) && (picked.size === 0 || picked.has(u.customerId)),
+    )
     if (upgrades.length === 0) {
       toast('No active upgrades to export')
       return null

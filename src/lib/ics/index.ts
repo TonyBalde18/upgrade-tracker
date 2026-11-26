@@ -9,9 +9,8 @@
  */
 import { addDaysIso, addHoursToHHmm, zonedToInstant } from '@/lib/dates'
 import type { Customer, Settings, Task, Template, Upgrade, UpgradeWindow } from '@/lib/model/types'
-import { ENV_KEYS } from '@/lib/model/types'
 import { statusCategory } from '@/lib/template/schedule'
-import { ENV_LABEL, windowOfTask } from '@/lib/upgrade/logic'
+import { allWindows, windowOfTask } from '@/lib/upgrade/logic'
 
 export type IcsScope = 'windows' | 'milestones' | 'all'
 
@@ -140,9 +139,10 @@ export function buildEvents(input: IcsInput): VEvent[] {
       statusCategory(settings.scheduleStatuses, u.scheduleStatus) === 'cancelled'
     const caseLine = u.snCaseUrl ? `ServiceNow case: ${u.snCaseUrl}` : null
 
-    for (const env of ENV_KEYS) {
-      const w: UpgradeWindow | null = u.windows[env]
-      if (!w) continue
+    for (const nw of allWindows(u, c)) {
+      const w: UpgradeWindow = nw.window
+      // standard windows keep their old uid ("window-dev"), extra ones use their id
+      const uidKey = nw.extra ? `window-x-${nw.extra.id}` : `window-${nw.key}`
       let start: Date
       try {
         start = zonedToInstant(w.start, w.timeZone)
@@ -155,19 +155,21 @@ export function buildEvents(input: IcsInput): VEvent[] {
       if (from && end.toISOString().slice(0, 10) < from) continue
       const status = settings.windowStatuses.find((s) => s.id === w.status)
       events.push({
-        uid: uidFor(u.id, `window-${env}`),
+        uid: uidFor(u.id, uidKey),
         sequence: sequenceOf(w.updatedAt),
-        summary: `${tag} Upgrade ${ENV_LABEL[env]} → ${u.family}`,
+        summary: `${tag} Upgrade ${nw.label} → ${u.family}`,
         description: describe([
           `${u.fromFamily} → ${u.family} (${u.cycle})`,
-          `${ENV_LABEL[env]} window: ${w.start.slice(0, 10)} ${w.start.slice(11)} to ${addHoursToHHmm(w.start.slice(11, 16), w.durationHours)} (${w.timeZone})`,
+          `${nw.label} window: ${w.start.slice(0, 10)} ${w.start.slice(11)} to ${addHoursToHHmm(w.start.slice(11, 16), w.durationHours)} (${w.timeZone})`,
           `Status: ${status?.label ?? 'Unknown'}`,
+          w.goNoGo.decision !== 'pending' &&
+            `Go / No-Go: ${w.goNoGo.decision === 'go' ? 'Go' : 'No-Go'}${w.goNoGo.date ? ` (${w.goNoGo.date})` : ''}${w.goNoGo.by ? ` by ${w.goNoGo.by}` : ''}`,
           caseLine,
           link && `Open in Upgrade Tracker: ${link}`,
         ]),
         start: { instant: start },
         end: { instant: end },
-        categories: `Upgrade window,${ENV_LABEL[env]}`,
+        categories: `Upgrade window,${nw.label}`,
         cancelled:
           upgradeCancelled || statusCategory(settings.windowStatuses, w.status) === 'cancelled',
         transparent: false,

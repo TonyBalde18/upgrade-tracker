@@ -19,8 +19,19 @@ const HEADER_FILL = 'FF262626'
 const PHASE_FILL = 'FFF2F2F2'
 const WEEKEND_FILL = 'FFEDEDED'
 const GRID = 'FFD9D9D9'
-const LABEL_COLS = 6 // Step, Owner, Assignee, Status, Start, End
-const HEADER_ROWS = 8
+const LABEL_COLS = 7 // Step, Assigned to, Owner, Assignee, Status, Start, End
+const LABEL_HEADERS = ['Step', 'Assigned to', 'Owner', 'Assignee', 'Status', 'Start', 'End']
+const STEP_COL_CHARS = 46
+
+/** Rows needed for a wrapped step name in the step column. */
+const linesFor = (text: string) => Math.max(1, Math.ceil(text.length / (STEP_COL_CHARS - 4)))
+
+/** Text that fits in a span of day cells, shortened with an ellipsis. */
+export function fitLabel(label: string, days: number): string {
+  const max = Math.max(1, Math.floor(days * 2.2))
+  if (label.length <= max) return label
+  return max >= 4 ? `${label.slice(0, max - 1).trimEnd()}…` : '•'
+}
 
 const solid = (argb: string): Fill => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } })
 const thin = { style: 'thin' as const, color: { argb: GRID } }
@@ -48,6 +59,10 @@ function addImage(
 }
 
 export function renderPlanSheet(wb: Workbook, plan: PlanModel, images: PlanImages = {}): Worksheet {
+  // rows: 1 logo, 2 title, 3 subtitle, 4.. one per window, a gap, then the 4 calendar header rows
+  const WIN_ROW = 4
+  const CAL_ROW = WIN_ROW + plan.windows.length + 1
+  const HEADER_ROWS = CAL_ROW + 3
   const ws = wb.addWorksheet(plan.sheetName, {
     views: [{ state: 'frozen', xSplit: LABEL_COLS, ySplit: HEADER_ROWS, showGridLines: false }],
     pageSetup: {
@@ -63,45 +78,62 @@ export function renderPlanSheet(wb: Workbook, plan: PlanModel, images: PlanImage
   const firstDay = LABEL_COLS + 1
   const lastCol = LABEL_COLS + Math.max(1, plan.days.length)
   ws.columns = [
-    { width: 50 },
+    { width: STEP_COL_CHARS },
+    { width: 16 },
     { width: 14 },
-    { width: 11 },
+    { width: 12 },
+    { width: 14 },
     { width: 13 },
-    { width: 12 },
-    { width: 12 },
-    ...plan.days.map(() => ({ width: 4.3 })),
+    { width: 13 },
+    ...plan.days.map(() => ({ width: 4.6 })),
   ]
 
-  // --- title block (rows 1-4) ---------------------------------------------------------
-  const hasLogo = Boolean(images.customer)
-  const indent = hasLogo ? '                  ' : ''
-  ws.getRow(1).height = 30
-  const title = ws.getCell(1, 1)
-  title.value = indent + plan.title
+  // --- title block: the logo has its own row, so it never covers the title ----------
+  ws.getRow(1).height = images.customer || images.from || images.to ? 46 : 8
+  addImage(wb, ws, images.customer, 0.15, 0.12, 132, 50)
+  // release badges at the right of the label columns
+  addImage(wb, ws, images.from, LABEL_COLS - 1.6, 0.15, 40, 40)
+  addImage(wb, ws, images.to, LABEL_COLS - 0.75, 0.15, 40, 40)
+
+  ws.getRow(2).height = 26
+  const title = ws.getCell(2, 1)
+  title.value = plan.title
   title.font = { name: 'Calibri', size: 16, bold: true, color: { argb: INK } }
   title.alignment = { vertical: 'middle' }
-  const sub = ws.getCell(2, 1)
-  sub.value = indent + plan.subtitle
+  ws.mergeCells(2, 1, 2, LABEL_COLS)
+  const sub = ws.getCell(3, 1)
+  sub.value = plan.subtitle
   sub.font = { size: 10, color: { argb: MUTED } }
-  addImage(wb, ws, images.customer, 0.1, 0.15, 110, 42)
-
-  plan.windows.forEach((w, i) => {
-    const cell = ws.getCell(3, 2 + i * 2)
-    cell.value = {
-      richText: [
-        { text: `${w.env}  `, font: { bold: true, size: 9, color: { argb: BRAND_RED } } },
-        { text: w.text, font: { size: 9, color: { argb: INK } } },
-      ],
-    }
-  })
-  ws.getCell(3, 1).value = indent + 'Upgrade windows'
-  ws.getCell(3, 1).font = { size: 9, bold: true, color: { argb: MUTED } }
+  sub.alignment = { vertical: 'top' }
+  ws.mergeCells(3, 1, 3, LABEL_COLS)
   ws.getRow(3).height = 18
 
-  // release badges, right of the title
-  const badgeCol = Math.min(lastCol - 3, LABEL_COLS + 1)
-  addImage(wb, ws, images.from, badgeCol, 0.1, 34, 34)
-  addImage(wb, ws, images.to, badgeCol + 2.2, 0.1, 34, 34)
+  // one row per window: name | date and time | Go / No-Go
+  plan.windows.forEach((w, i) => {
+    const r = WIN_ROW + i
+    const name = ws.getCell(r, 1)
+    name.value = {
+      richText: [
+        { text: `${w.env} window  `, font: { bold: true, size: 10, color: { argb: BRAND_RED } } },
+        { text: w.text, font: { size: 10, color: { argb: INK } } },
+      ],
+    }
+    name.alignment = { vertical: 'middle', indent: 1 }
+    ws.mergeCells(r, 1, r, 4)
+    if (w.goNoGo) {
+      const g = ws.getCell(r, 5)
+      g.value = `Go / No-Go: ${w.goNoGo}`
+      const color = w.goNoGo.startsWith('Go')
+        ? 'FF00B050'
+        : w.goNoGo.startsWith('No-Go')
+          ? BRAND_RED
+          : MUTED
+      g.font = { size: 10, bold: w.goNoGo !== 'Pending', color: { argb: color } }
+      g.alignment = { vertical: 'middle' }
+      ws.mergeCells(r, 5, r, LABEL_COLS)
+    }
+    ws.getRow(r).height = 18
+  })
 
   // --- calendar header (rows 5-8) ---------------------------------------------------
   const headerCell = (
@@ -134,28 +166,28 @@ export function renderPlanSheet(wb: Workbook, plan: PlanModel, images: PlanImage
       }
     })
   }
-  bands(5, (iso) => formatDay(iso, 'MMMM yyyy'))
-  bands(6, (iso) => `W${isoWeekOf(iso).week}`)
+  bands(CAL_ROW, (iso) => formatDay(iso, 'MMMM yyyy'))
+  bands(CAL_ROW + 1, (iso) => `W${isoWeekOf(iso).week}`)
   plan.days.forEach((d, i) => {
     const col = firstDay + i
     const fill = d.today ? BRAND_RED : d.weekend ? 'FF7F7F7F' : HEADER_FILL
-    headerCell(7, col, formatDay(d.date, 'EEEEEE'), { fill, bold: false, size: 8 })
-    headerCell(8, col, parseDay(d.date).getDate(), { fill })
+    headerCell(CAL_ROW + 2, col, formatDay(d.date, 'EEEEEE'), { fill, bold: false, size: 8 })
+    headerCell(CAL_ROW + 3, col, parseDay(d.date).getDate(), { fill })
   })
-  ;['Step', 'Owner', 'Assignee', 'Status', 'Start', 'End'].forEach((h, i) => {
-    headerCell(8, i + 1, h, { fill: HEADER_FILL }).alignment = {
+  LABEL_HEADERS.forEach((h, i) => {
+    headerCell(CAL_ROW + 3, i + 1, h, { fill: HEADER_FILL }).alignment = {
       horizontal: i === 0 ? 'left' : 'center',
       vertical: 'middle',
       indent: i === 0 ? 1 : 0,
     }
-    for (const r of [5, 6, 7]) {
+    for (const r of [CAL_ROW, CAL_ROW + 1, CAL_ROW + 2]) {
       const c = ws.getCell(r, i + 1)
       c.fill = solid(HEADER_FILL)
     }
   })
-  ws.getCell(7, 1).value = 'Today is marked in red'
-  ws.getCell(7, 1).font = { size: 8, italic: true, color: { argb: 'FFBFBFBF' } }
-  ws.getRow(8).height = 18
+  ws.getCell(CAL_ROW + 2, 1).value = 'Today is marked in red'
+  ws.getCell(CAL_ROW + 2, 1).font = { size: 8, italic: true, color: { argb: 'FFBFBFBF' } }
+  ws.getRow(CAL_ROW + 3).height = 20
 
   // --- step rows ----------------------------------------------------------------------
   let r = HEADER_ROWS + 1
@@ -167,16 +199,17 @@ export function renderPlanSheet(wb: Workbook, plan: PlanModel, images: PlanImage
         cell.border = { top: thin, bottom: thin }
       }
       const cell = ws.getCell(r, 1)
-      cell.value = row.phase.toUpperCase()
+      cell.value = row.label.toUpperCase()
       cell.font = { size: 9, bold: true, color: { argb: BRAND_RED } }
       cell.alignment = { indent: 1, vertical: 'middle' }
-      ws.getRow(r).height = 16
+      ws.getRow(r).height = 18
       r++
       continue
     }
     const style = CATEGORY_FILL[row.category]
     const values: (string | Date | null)[] = [
       row.name,
+      row.assignedTo,
       row.owner,
       row.assignee,
       row.status,
@@ -192,12 +225,12 @@ export function renderPlanSheet(wb: Workbook, plan: PlanModel, images: PlanImage
         vertical: 'middle',
         horizontal: i === 0 ? 'left' : 'center',
         indent: i === 0 ? 1 : 0,
-        wrapText: i === 0,
+        wrapText: i <= 3,
       }
-      if (i >= 4) cell.numFmt = 'ddd dd mmm'
+      if (i >= 5) cell.numFmt = 'ddd dd mmm yy'
     })
     if (style) {
-      const status = ws.getCell(r, 4)
+      const status = ws.getCell(r, 5)
       status.fill = solid(style.fill)
       status.font = { size: 9, bold: true, color: { argb: style.font } }
     }
@@ -210,12 +243,12 @@ export function renderPlanSheet(wb: Workbook, plan: PlanModel, images: PlanImage
       const { from, to, label } = row.cells
       for (let i = from; i <= to; i++) ws.getCell(r, firstDay + i).fill = solid(style.fill)
       const cell = ws.getCell(r, firstDay + from)
-      cell.value = label
+      cell.value = fitLabel(label, to - from + 1)
       cell.font = { size: 8, bold: true, color: { argb: style.font } }
       cell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: to === from }
       if (to > from) ws.mergeCells(r, firstDay + from, r, firstDay + to)
     }
-    ws.getRow(r).height = 18
+    ws.getRow(r).height = Math.max(20, linesFor(row.name) * 14 + 6)
     r++
   }
 
@@ -253,15 +286,17 @@ export function renderOverviewSheet(
     },
   })
   ws.columns = [
-    { width: 30 },
+    { width: 28 },
     { width: 24 },
     { width: 10 },
-    { width: 22 },
-    { width: 44 },
-    { width: 44 },
-    { width: 44 },
+    { width: 20 },
+    { width: 42 },
+    { width: 42 },
+    { width: 42 },
+    { width: 34 },
+    { width: 24 },
     { width: 11 },
-    { width: 56 },
+    { width: 50 },
   ]
   const t = ws.getCell(1, 1)
   t.value = 'Upgrade overview'
@@ -276,8 +311,10 @@ export function renderOverviewSheet(
     'Cycle',
     'Status',
     'DEV window',
-    'UAT window',
+    'Test window',
     'PROD window',
+    'Other windows',
+    'PROD Go / No-Go',
     'Progress',
     'Next open step',
   ].forEach((h, i) => {
@@ -285,7 +322,7 @@ export function renderOverviewSheet(
     c.value = h
     c.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } }
     c.fill = solid(HEADER_FILL)
-    c.alignment = { vertical: 'middle', horizontal: i === 7 ? 'center' : 'left', indent: 1 }
+    c.alignment = { vertical: 'middle', horizontal: i === 9 ? 'center' : 'left', indent: 1 }
   })
   ws.getRow(3).height = 20
   rows.forEach((row, idx) => {
@@ -298,6 +335,8 @@ export function renderOverviewSheet(
       row.dev,
       row.uat,
       row.prod,
+      row.other || '-',
+      row.goNoGo,
       row.progress,
       row.nextStep,
     ]
@@ -308,19 +347,20 @@ export function renderOverviewSheet(
       c.border = { bottom: thin }
       c.alignment = {
         vertical: 'middle',
-        horizontal: i === 7 ? 'center' : 'left',
+        horizontal: i === 9 ? 'center' : 'left',
         indent: 1,
         wrapText: i >= 4,
       }
     })
-    ws.getCell(r, 8).numFmt = '0%'
+    ws.getCell(r, 10).numFmt = '0%'
     const style = CATEGORY_FILL[row.category]
     if (style) {
       const s = ws.getCell(r, 4)
       s.fill = solid(style.fill)
       s.font = { size: 10, bold: true, color: { argb: style.font } }
     }
-    ws.getRow(r).height = 30
+    const lines = Math.max(2, row.other.split('\n').length * 2, Math.ceil(row.nextStep.length / 46))
+    ws.getRow(r).height = lines * 14 + 4
   })
   return ws
 }

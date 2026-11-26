@@ -14,6 +14,7 @@ import {
   LogOut,
   Monitor,
   Moon,
+  Printer,
   Rows3,
   Plus,
   Redo2,
@@ -199,6 +200,13 @@ export function CommandPalette() {
                         onSelect={() => run(() => void exportOverviewExcel())}
                       >
                         <FileSpreadsheet className="h-4 w-4" /> Export overview to Excel (.xlsx)
+                      </Command.Item>
+                      <Command.Item
+                        className={itemCls}
+                        keywords={['pdf', 'print', 'overview', 'customer', 'meeting']}
+                        onSelect={() => run(() => navigate('/print/overview'))}
+                      >
+                        <Printer className="h-4 w-4" /> Print overview / save as PDF
                       </Command.Item>
                       <Command.Item
                         className={itemCls}

@@ -13,13 +13,13 @@ import {
   zoneAbbr,
   zonedToInstant,
 } from '@/lib/dates'
-import { ENV_LABEL } from '@/lib/upgrade/logic'
+import { allWindows, envLabel, phaseLabel } from '@/lib/upgrade/logic'
 import { progressOf, statusCategory } from '@/lib/template/schedule'
 import { releaseLogoOf } from '@/lib/releases'
 import {
-  ENV_KEYS,
   PHASES,
   type Customer,
+  type GoNoGo,
   type Phase,
   type StatusCategory,
   type Task,
@@ -77,10 +77,11 @@ export interface PlanRowCells {
 }
 
 export type PlanRow =
-  | { kind: 'phase'; phase: Phase }
+  | { kind: 'phase'; phase: Phase; label: string }
   | {
       kind: 'task'
       name: string
+      assignedTo: string
       owner: string
       assignee: string
       status: string
@@ -94,7 +95,7 @@ export interface PlanModel {
   customer: Pick<Customer, 'name' | 'shortName' | 'logo'>
   title: string
   subtitle: string
-  windows: { env: string; text: string }[]
+  windows: { env: string; text: string; goNoGo: string }[]
   fromFamily: string
   family: string
   fromLogo?: string
@@ -111,6 +112,32 @@ export function windowText(w: UpgradeWindow): string {
   const end = new Date(start.getTime() + w.durationHours * 3_600_000)
   const day = formatInZone(start, w.timeZone, 'EEE d MMM yyyy')
   return `${day}, ${formatInZone(start, w.timeZone, 'HH:mm')}-${formatInZone(end, w.timeZone, 'HH:mm')} ${zoneAbbr(w.timeZone, start)} (${w.timeZone})`
+}
+
+/** "Go (12 Nov 2026, SDM)", "No-Go", "Pending" */
+export function goNoGoText(g: GoNoGo): string {
+  if (g.decision === 'pending') return 'Pending'
+  const extra = [g.date ? formatDayShort(g.date) : '', g.by].filter(Boolean).join(', ')
+  return `${g.decision === 'go' ? 'Go' : 'No-Go'}${extra ? ` (${extra})` : ''}`
+}
+
+function formatDayShort(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const month = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ][(m ?? 1) - 1]
+  return `${d} ${month} ${y}`
 }
 
 /** Monday on or before / Sunday on or after. */
@@ -163,7 +190,8 @@ export function planModel(
   today: string,
   takenSheetNames: Set<string> = new Set(),
 ): PlanModel {
-  const customer = doc.customers.find((c) => c.id === upgrade.customerId) ?? {
+  const found = doc.customers.find((c) => c.id === upgrade.customerId)
+  const customer = found ?? {
     name: 'Unknown customer',
     shortName: '',
     logo: undefined,
@@ -181,7 +209,7 @@ export function planModel(
   for (const phase of PHASES) {
     const inPhase = tasks.filter((t) => t.phase === phase)
     if (inPhase.length === 0) continue
-    rows.push({ kind: 'phase', phase })
+    rows.push({ kind: 'phase', phase, label: phaseLabel(phase, found) })
     for (const t of inPhase) {
       const category = statusCategory(settings.taskStatuses, t.status) ?? 'planned'
       const from = t.start ? index.get(t.start) : undefined
@@ -189,6 +217,7 @@ export function planModel(
       rows.push({
         kind: 'task',
         name: t.name,
+        assignedTo: t.assignedTo,
         owner: t.owner,
         assignee: t.assignee,
         status: label('taskStatuses', t.status),
@@ -209,9 +238,16 @@ export function planModel(
     customer,
     title: `${customer.name} - ${upgrade.fromFamily} to ${upgrade.family} upgrade schedule`,
     subtitle: `Cycle ${upgrade.cycle} · Status: ${label('scheduleStatuses', upgrade.scheduleStatus)} · ${progress}% complete`,
-    windows: ENV_KEYS.map((env) => {
-      const w = upgrade.windows[env]
-      return { env: ENV_LABEL[env], text: w ? windowText(w) : 'Not applicable' }
+    windows: allWindows(upgrade, found).flatMap((nw) => {
+      const line = {
+        env: nw.label,
+        text: windowText(nw.window),
+        goNoGo: goNoGoText(nw.window.goNoGo),
+      }
+      // a skipped test environment is listed right after DEV
+      return nw.env === 'dev' && !upgrade.windows.uat
+        ? [line, { env: envLabel('uat', found), text: 'Not applicable', goNoGo: '' }]
+        : [line]
     }),
     fromFamily: upgrade.fromFamily,
     family: upgrade.family,
@@ -234,6 +270,9 @@ export interface OverviewRow {
   dev: string
   uat: string
   prod: string
+  /** extra windows, one per line */
+  other: string
+  goNoGo: string
   progress: number
   nextStep: string
 }
@@ -256,7 +295,7 @@ export function overviewRows(
         .sort((a, b) => a.start!.localeCompare(b.start!) || a.order - b.order)[0]
       const w = (env: 'dev' | 'uat' | 'prod') => {
         const x = u.windows[env]
-        return x ? windowText(x) : 'N/A'
+        return `${envLabel(env, c)}: ${x ? windowText(x) : 'N/A'}`
       }
       return {
         customer: c?.name ?? 'Unknown customer',
@@ -268,6 +307,8 @@ export function overviewRows(
         dev: w('dev'),
         uat: w('uat'),
         prod: w('prod'),
+        other: u.extraWindows.map((x) => `${x.name}: ${windowText(x)}`).join('\n'),
+        goNoGo: goNoGoText(u.windows.prod.goNoGo),
         progress: progressOf(u.tasks, settings.taskStatuses),
         nextStep: open ? `${open.name} (${open.start})` : 'All steps completed',
       }

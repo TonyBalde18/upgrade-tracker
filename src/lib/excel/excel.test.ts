@@ -10,7 +10,7 @@ import {
   safeSheetName,
   windowText,
 } from './model'
-import { renderOverviewSheet, renderPlanSheet } from './render'
+import { fitLabel, renderOverviewSheet, renderPlanSheet } from './render'
 
 const doc = buildDemoDoc()
 const upgrade = doc.upgrades[0]!
@@ -92,6 +92,14 @@ describe('excel model', () => {
   })
 })
 
+describe('labels that fit', () => {
+  it('shortens long labels to the days they cover', () => {
+    expect(fitLabel('Hypercare', 10)).toBe('Hypercare')
+    expect(fitLabel('Smoke testing', 3)).toBe('Smoke…')
+    expect(fitLabel('Smoke testing', 1)).toBe('•')
+  })
+})
+
 describe('excel workbook', () => {
   it('renders a plan and an overview that Excel can open', async () => {
     const wb = new ExcelJS.Workbook()
@@ -105,16 +113,22 @@ describe('excel workbook', () => {
     await back.xlsx.load(buffer as ArrayBuffer)
     expect(back.worksheets.map((w) => w.name)).toEqual(['Overview', plan.sheetName])
     const ws = back.getWorksheet(plan.sheetName)!
-    expect(String(ws.getCell(1, 1).value)).toContain('Acme Corp')
-    expect(ws.getCell(8, 1).value).toBe('Step')
+    // row 1 holds only the logo, the title is on row 2
+    expect(String(ws.getCell(2, 1).value)).toContain('Acme Corp')
+    // one row per window, with its Go / No-Go
+    expect(JSON.stringify(ws.getCell(4, 1).value)).toContain('DEV window')
+    expect(String(ws.getCell(4, 5).value)).toMatch(/^Go \/ No-Go: /)
+    const header = 4 + plan.windows.length + 1 + 3
+    expect(ws.getCell(header, 1).value).toBe('Step')
+    expect(ws.getCell(header, 2).value).toBe('Assigned to')
     // the first task row sits under the first phase row
-    expect(ws.getCell(9, 1).value).toBe('PREPARATION')
+    expect(ws.getCell(header + 1, 1).value).toBe('PREPARATION')
     const firstTask = plan.rows.find((r) => r.kind === 'task')!
-    expect(ws.getCell(10, 1).value).toBe(firstTask.kind === 'task' ? firstTask.name : '')
+    expect(ws.getCell(header + 2, 1).value).toBe(firstTask.kind === 'task' ? firstTask.name : '')
     // the PROD upgrade cell is labelled UP
     const prodRow = plan.rows.findIndex((r) => r.kind === 'task' && /upgrade prod/i.test(r.name))
     const cells = (plan.rows[prodRow] as { cells: { from: number } }).cells
-    expect(ws.getCell(9 + prodRow, 7 + cells.from).value).toBe('UP')
+    expect(ws.getCell(header + 1 + prodRow, 8 + cells.from).value).toBe('UP')
     const overview = back.getWorksheet('Overview')!
     expect(overview.getCell(3, 1).value).toBe('Customer')
     expect(overview.getCell(4, 1).value).toBeTruthy()

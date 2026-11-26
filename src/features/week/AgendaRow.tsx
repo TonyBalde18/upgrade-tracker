@@ -149,9 +149,7 @@ export const AgendaRow = memo(function AgendaRow({
             label={customer?.name ?? 'Unknown'}
           />
           <span>·</span>
-          <span>
-            {task.owner} / {task.assignee}
-          </span>
+          <span>{[task.assignedTo, task.owner, task.assignee].filter(Boolean).join(' / ')}</span>
           {late != null && late > 0 && (
             <span className="font-semibold text-danger">
               · {late} day{late === 1 ? '' : 's'} late (due {formatDay(task.end, 'EEE d MMM')})

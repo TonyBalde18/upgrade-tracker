@@ -16,7 +16,7 @@ import { QuickToggle } from '@/components/ui/QuickToggle'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/components/ui/cn'
-import { progressOf } from '@/lib/template/schedule'
+import { progressOf, statusCategory } from '@/lib/template/schedule'
 import {
   diffDaysIso,
   formatDay,
@@ -37,6 +37,7 @@ import { phaseFlow, windowPosition } from '@/lib/timeline'
 import { allWindows, isActiveUpgrade, windowName } from '@/lib/upgrade/logic'
 import type { Customer, Settings, Upgrade } from '@/lib/model/types'
 import { useNow } from '@/lib/useNow'
+import { NeedsAttention, StatusBreakdown, UpgradesPerMonth } from './Insights'
 import { toggleTask } from '@/features/week/AgendaRow'
 
 const list = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } }
@@ -254,6 +255,37 @@ function HeatStrip({ today }: { today: string }) {
 
 // --- upgrade card ----------------------------------------------------------------------
 
+/** "14 / 22 steps done" with a bar. N/A steps are not counted. */
+function StepsProgress({ upgrade, settings }: { upgrade: Upgrade; settings: Settings }) {
+  const relevant = upgrade.tasks.filter(
+    (t) => statusCategory(settings.taskStatuses, t.status) !== 'na',
+  )
+  const done = relevant.filter((t) => statusCategory(settings.taskStatuses, t.status) === 'done')
+  const pct = relevant.length ? (done.length / relevant.length) * 100 : 0
+  return (
+    <div className="flex items-center gap-2.5">
+      <div
+        className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3"
+        role="progressbar"
+        aria-valuenow={Math.round(pct)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Steps done"
+      >
+        <motion.div
+          className="h-full rounded-full bg-success"
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ type: 'spring', stiffness: 120, damping: 22 }}
+        />
+      </div>
+      <span className="shrink-0 text-xs text-muted tabular">
+        {done.length} / {relevant.length} steps done
+      </span>
+    </div>
+  )
+}
+
 function UpgradeCard({
   upgrade,
   customer,
@@ -312,6 +344,7 @@ function UpgradeCard({
         </div>
 
         <PhaseFlowBar flow={flow} />
+        <StepsProgress upgrade={upgrade} settings={settings} />
 
         <div className="flex flex-col gap-1.5">
           <span className="eyebrow">Next steps</span>
@@ -408,14 +441,6 @@ export function DashboardPage() {
   const overdue = useMemo(() => overdueTasks(doc, today), [doc, today])
   const blocked = useMemo(() => blockedTasks(doc), [doc])
   const calls = useMemo(() => upcomingGoNoGo(doc, today, 21), [doc, today])
-  const counts = useMemo(
-    () =>
-      settings.scheduleStatuses.map((s) => ({
-        status: s,
-        count: upgrades.filter((u) => u.scheduleStatus === s.id).length,
-      })),
-    [settings.scheduleStatuses, upgrades],
-  )
 
   if (hydrated && customers.length === 0 && upgrades.length === 0) return <Onboarding />
 
@@ -465,24 +490,18 @@ export function DashboardPage() {
               </Tile>
             </motion.div>
           </div>
-          <motion.div variants={item} className="flex flex-wrap gap-2">
-            {counts.map(({ status, count }) => (
-              <div
-                key={status.id}
-                className={cn(
-                  'flex items-center gap-2 rounded-full border border-border bg-surface/80 py-1 pr-1 pl-3 backdrop-blur',
-                  count === 0 && 'opacity-50',
-                )}
-              >
-                <AnimatedNumber value={count} className="font-heading text-sm font-bold tabular" />
-                <StatusBadge status={status} size="sm" />
-              </div>
-            ))}
+          <motion.div variants={item}>
+            <StatusBreakdown doc={doc} />
           </motion.div>
           <motion.div variants={item}>
             <HeatStrip today={today} />
           </motion.div>
         </motion.div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 px-4 md:px-8 xl:grid-cols-2">
+        <NeedsAttention doc={doc} today={today} />
+        <UpgradesPerMonth doc={doc} today={today} />
       </section>
 
       <section className="px-4 md:px-8">

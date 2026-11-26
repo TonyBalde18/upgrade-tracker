@@ -1,4 +1,5 @@
-import { FileSpreadsheet } from 'lucide-react'
+import { FileSpreadsheet, Printer } from 'lucide-react'
+import { Link } from 'react-router'
 import { exportOverviewExcel } from '@/features/excel/exportExcel'
 import { animate } from 'motion/react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -344,6 +345,11 @@ export default function TimelinePage() {
         <Button onClick={() => void exportOverviewExcel()}>
           <FileSpreadsheet className="h-4 w-4" /> Export to Excel
         </Button>
+        <Link to="/print/overview">
+          <Button>
+            <Printer className="h-4 w-4" /> PDF overview
+          </Button>
+        </Link>
         <CustomerFilter />
         <Segmented<Scope>
           ariaLabel="Which upgrades"

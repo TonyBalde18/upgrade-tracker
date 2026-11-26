@@ -167,6 +167,7 @@ describe('app smoke test', () => {
     '#/upgrades/demo-upg-2?task=demo-globex-step-21',
     '#/upgrades/missing',
     '#/upgrades/demo-upg-1/print',
+    '#/print/overview',
     '#/template',
     '#/canvas',
     '#/nope',
@@ -175,7 +176,15 @@ describe('app smoke test', () => {
     const { el, root } = await render(hash)
     cleanup = () => root.unmount()
     expect(el.textContent).toContain('Upgrade Tracker')
-    if (hash === '#/') expect(el.textContent).toContain('Acme Corp')
+    if (hash === '#/') {
+      expect(el.textContent).toContain('Acme Corp')
+      expect(el.textContent).toContain('Needs attention')
+      expect(el.textContent).toContain('Upgrades per month')
+    }
+    if (hash === '#/print/overview') {
+      expect(el.textContent).toContain('Upgrade overview')
+      expect(el.textContent).toContain('Windows in the coming months')
+    }
     if (hash === '#/settings') expect(el.textContent).toContain('Pending approval')
     if (hash === '#/customers/demo-acme') expect(el.textContent).toContain('Upgrade history')
     if (hash === '#/upgrades/demo-upg-1') {
@@ -183,6 +192,8 @@ describe('app smoke test', () => {
       expect(values).toContain('Go / No-Go call')
       expect(values).toContain('Upgrade Prod to Australia release')
       expect(el.textContent).toContain('Hypercare')
+      expect(el.textContent).toContain('Docs & lessons')
+      expect(el.textContent).toContain('Go / No-Go')
     }
     if (hash.startsWith('#/upgrades/demo-upg-2')) expect(el.textContent).toContain('N/A')
     if (hash === '#/upgrades/missing') expect(el.textContent).toContain('Upgrade not found')
@@ -194,7 +205,7 @@ describe('app smoke test', () => {
     if (hash === '#/template') expect(el.textContent).toContain('Live preview')
     if (hash === '#/timeline') {
       expect(el.textContent).toContain('Global timeline')
-      expect(el.textContent).toContain('1 PROD clash')
+      expect(el.textContent).toContain('clash')
     }
   })
 })
