@@ -33,11 +33,14 @@ const settings = z.object({
   defaultWindowDurationHours: z.number().positive(),
   owners: z.array(z.string()),
   assignees: z.array(z.string()),
+  people: z.array(z.string()),
   scheduleStatuses: z.array(statusDef).min(1),
   windowStatuses: z.array(statusDef).min(1),
   taskStatuses: z.array(statusDef).min(1),
   releaseLogos: z.record(z.string(), logoDataUrl).optional(),
 })
+
+const docLink = z.object({ id: z.string().min(1), name: z.string(), url: z.string() })
 
 const customer = z.object({
   id: z.string().min(1),
@@ -47,6 +50,11 @@ const customer = z.object({
   snContact: z.string(),
   consultants: z.array(z.string()),
   instances: z.object({ dev: z.string(), uat: z.string(), prod: z.string() }),
+  envNames: z.object({ dev: z.string(), uat: z.string(), prod: z.string() }),
+  currentRelease: z.string(),
+  currentPatch: z.string(),
+  releaseCheckedAt: isoDate.nullable(),
+  documents: z.array(docLink),
   notes: z.string(),
   active: z.boolean(),
   logo: logoDataUrl.optional(),
@@ -79,7 +87,14 @@ const window = z.object({
   durationHours: z.number().positive(),
   status: z.string(),
   updatedAt: z.string(),
+  goNoGo: z.object({
+    decision: z.enum(['pending', 'go', 'nogo']),
+    date: isoDate.nullable(),
+    by: z.string(),
+  }),
 })
+
+const extraWindow = window.extend({ id: z.string().min(1), name: z.string() })
 
 const task = z.object({
   id: z.string().min(1),
@@ -89,6 +104,7 @@ const task = z.object({
   kind,
   owner: z.string(),
   assignee: z.string(),
+  assignedTo: z.string(),
   status: z.string(),
   start: isoDate.nullable(),
   end: isoDate.nullable(),
@@ -110,6 +126,9 @@ const upgrade = z.object({
   snCaseUrl: z.string(),
   notes: z.string(),
   windows: z.object({ dev: window, uat: window.nullable(), prod: window }),
+  extraWindows: z.array(extraWindow),
+  documents: z.array(docLink),
+  lessonsLearned: z.string(),
   tasks: z.array(task),
   canvas: z.object({
     nodePositions: z.record(z.string(), z.object({ x: z.number(), y: z.number() })).optional(),

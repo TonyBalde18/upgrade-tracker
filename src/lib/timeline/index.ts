@@ -2,7 +2,8 @@
  * Pure helpers for the global timeline: phase spans, window positions and
  * PROD-window clashes between customers.
  */
-import { addDaysIso, convertLocal, isoWeekOf } from '@/lib/dates'
+import { addDaysIso, convertLocal, isoWeekOf, weekdayOf } from '@/lib/dates'
+import { allWindows, windowByKey } from '@/lib/upgrade/logic'
 import type {
   EnvKey,
   Phase,
@@ -195,5 +196,68 @@ export function phaseFlow(
       return { phase, span, state: 'current' as const }
     }
     return { phase, span, state: span.state === 'done' ? ('done' as const) : ('future' as const) }
+  })
+}
+
+export interface WindowEntry extends ProdEntry {
+  /** "dev" | "uat" | "prod" | "x:<id>" */
+  key: string
+}
+
+/** Every non-cancelled window of non-cancelled upgrades, in the display zone. */
+function windowEntries(
+  upgrades: Upgrade[],
+  settings: Pick<Settings, 'scheduleStatuses' | 'windowStatuses' | 'displayTimeZone'>,
+): WindowEntry[] {
+  const out: WindowEntry[] = []
+  for (const u of upgrades) {
+    if (statusCategory(settings.scheduleStatuses, u.scheduleStatus) === 'cancelled') continue
+    for (const { key, window: w } of allWindows(u)) {
+      const cat = statusCategory(settings.windowStatuses, w.status)
+      if (cat === 'cancelled') continue
+      const pos = windowPosition(w, settings.displayTimeZone)
+      out.push({
+        upgradeId: u.id,
+        customerId: u.customerId,
+        key,
+        local: pos.local,
+        night: nightOf(pos.local),
+        week: isoWeekOf(pos.date).monday,
+      })
+    }
+  }
+  return out
+}
+
+/**
+ * Windows of different customers (any environment) on the same night: the team
+ * can not run two upgrades at once.
+ */
+export function windowClashes(
+  upgrades: Upgrade[],
+  settings: Pick<Settings, 'scheduleStatuses' | 'windowStatuses' | 'displayTimeZone'>,
+): { key: string; entries: WindowEntry[] }[] {
+  const map = new Map<string, WindowEntry[]>()
+  for (const e of windowEntries(upgrades, settings))
+    map.set(e.night, [...(map.get(e.night) ?? []), e])
+  return [...map.entries()]
+    .filter(([, es]) => new Set(es.map((e) => e.customerId)).size >= 2)
+    .map(([key, es]) => ({ key, entries: es.sort((a, b) => a.local.localeCompare(b.local)) }))
+    .sort((a, b) => a.key.localeCompare(b.key))
+}
+
+/** Windows that start on a Saturday or Sunday (in the window's own zone), from a date on. */
+export function weekendWindows(
+  upgrades: Upgrade[],
+  settings: Pick<Settings, 'scheduleStatuses' | 'windowStatuses' | 'displayTimeZone'>,
+  from: string,
+): WindowEntry[] {
+  const all = windowEntries(upgrades, settings)
+  return all.filter((e) => {
+    const u = upgrades.find((x) => x.id === e.upgradeId)
+    const w = u ? windowByKey(u, e.key) : null
+    if (!w || w.start.slice(0, 10) < from) return false
+    const wd = weekdayOf(w.start.slice(0, 10))
+    return wd === 0 || wd === 6
   })
 }

@@ -3,9 +3,11 @@
  */
 import { addDaysIso, weekdayOf } from '@/lib/dates'
 import { newId } from '@/lib/id'
+import { newGoNoGo } from '@/lib/model/defaults'
 import type {
   Customer,
   EnvKey,
+  ExtraWindow,
   Settings,
   Task,
   Template,
@@ -23,6 +25,60 @@ import {
 } from '@/lib/template/schedule'
 
 export const ENV_LABEL: Record<EnvKey, string> = { dev: 'DEV', uat: 'UAT', prod: 'PROD' }
+
+/** What this customer calls an environment ("PRP" for the test one...). */
+export function envLabel(env: EnvKey, customer?: Pick<Customer, 'envNames'> | null): string {
+  return customer?.envNames?.[env]?.trim() || ENV_LABEL[env]
+}
+
+/** Label of a phase for a customer: the test phase uses their test environment name. */
+export function phaseLabel(phase: string, customer?: Pick<Customer, 'envNames'> | null): string {
+  return phase === 'UAT' ? envLabel('uat', customer) : phase
+}
+
+/** A window of an upgrade, standard or extra, with its display name. */
+export interface NamedWindow {
+  /** "dev" | "uat" | "prod" or "x:<id>" for an extra window */
+  key: string
+  env: EnvKey | null
+  label: string
+  window: UpgradeWindow
+  extra?: ExtraWindow
+}
+
+/** A window by key: "dev" | "uat" | "prod" | "x:<id>". */
+export function windowByKey(
+  u: Pick<Upgrade, 'windows' | 'extraWindows'>,
+  key: string,
+): UpgradeWindow | null {
+  if (key === 'dev' || key === 'uat' || key === 'prod') return u.windows[key]
+  return u.extraWindows?.find((x) => `x:${x.id}` === key) ?? null
+}
+
+/** Display name of a window by key. */
+export function windowName(
+  u: Pick<Upgrade, 'extraWindows'>,
+  key: string,
+  customer?: Pick<Customer, 'envNames'> | null,
+): string {
+  if (key === 'dev' || key === 'uat' || key === 'prod') return envLabel(key, customer)
+  return u.extraWindows?.find((x) => `x:${x.id}` === key)?.name || 'Extra'
+}
+
+/** Every window of an upgrade in date order (standard ones plus extra ones). */
+export function allWindows(
+  u: Pick<Upgrade, 'windows' | 'extraWindows'>,
+  customer?: Pick<Customer, 'envNames'> | null,
+): NamedWindow[] {
+  const out: NamedWindow[] = []
+  for (const env of ['dev', 'uat', 'prod'] as const) {
+    const w = u.windows[env]
+    if (w) out.push({ key: env, env, label: envLabel(env, customer), window: w })
+  }
+  for (const x of u.extraWindows ?? [])
+    out.push({ key: `x:${x.id}`, env: null, label: x.name || 'Extra', window: x, extra: x })
+  return out.sort((a, b) => a.window.start.localeCompare(b.window.start))
+}
 
 // --- upgrade state -------------------------------------------------------------
 
@@ -76,7 +132,14 @@ export function makeWindow(
   status: string,
   now: Date = new Date(),
 ): UpgradeWindow {
-  return { start: `${date}T${time}`, timeZone, durationHours, status, updatedAt: now.toISOString() }
+  return {
+    start: `${date}T${time}`,
+    timeZone,
+    durationHours,
+    status,
+    updatedAt: now.toISOString(),
+    goNoGo: newGoNoGo(),
+  }
 }
 
 /** First Tuesday on or after a date. */
@@ -142,12 +205,15 @@ export function shiftTask(t: Task, days: number, now: Date = new Date()): Task {
 }
 
 export function shiftUpgrade(
-  u: Pick<Upgrade, 'windows' | 'tasks'>,
+  u: Pick<Upgrade, 'windows' | 'tasks'> & { extraWindows?: ExtraWindow[] },
   days: number,
   includeWindows: boolean,
   now: Date = new Date(),
-): Pick<Upgrade, 'windows' | 'tasks'> {
+): Pick<Upgrade, 'windows' | 'tasks' | 'extraWindows'> {
   return {
+    extraWindows: (u.extraWindows ?? []).map((x) =>
+      includeWindows ? { ...x, ...shiftWindow(x, days, now) } : x,
+    ),
     windows: includeWindows
       ? {
           dev: shiftWindow(u.windows.dev, days, now),
@@ -251,11 +317,19 @@ export function applyTemplate(
   template: Template,
   settings: Pick<Settings, 'taskStatuses'>,
   now: Date = new Date(),
+  testName = 'UAT',
 ): { tasks: Task[]; added: number; detached: number } {
   const stamp = now.toISOString()
   const byStep = new Map(u.tasks.filter((t) => t.templateStepId).map((t) => [t.templateStepId!, t]))
   const stepIds = new Set(template.steps.map((s) => s.id))
-  const fresh = generateTasks({ template, windows: u.windows, family: u.family, settings, now })
+  const fresh = generateTasks({
+    template,
+    windows: u.windows,
+    family: u.family,
+    settings,
+    now,
+    testName,
+  })
   let added = 0
   const fromTemplate = template.steps.map((step, i) => {
     const existing = byStep.get(step.id)
@@ -267,7 +341,7 @@ export function applyTemplate(
     const keepDates = existing.datesManuallySet
     return {
       ...existing,
-      name: fillFamily(step.name, u.family),
+      name: fillFamily(step.name, u.family, testName),
       phase: step.phase,
       kind: step.kind,
       start: keepDates ? existing.start : gen.start,
@@ -320,6 +394,8 @@ export interface NewUpgradeInput {
   cycle: string
   snCaseUrl: string
   windows: Windows
+  /** the customer's name for the test environment, used in step names */
+  testName?: string
 }
 
 export function buildUpgrade(
@@ -339,11 +415,15 @@ export function buildUpgrade(
     snCaseUrl: input.snCaseUrl.trim(),
     notes: '',
     windows: input.windows,
+    extraWindows: [],
+    documents: [],
+    lessonsLearned: '',
     tasks: generateTasks({
       template,
       windows: input.windows,
       family: input.family.trim(),
       settings,
+      testName: input.testName,
       now,
     }),
     canvas: {},
@@ -356,13 +436,17 @@ export function buildUpgrade(
 /** Copy an upgrade for the next cycle: windows shifted, a fresh plan from the template. */
 export function duplicateForNextCycle(
   u: Upgrade,
-  opts: { family: string; cycle: string; shiftDays: number },
+  opts: { family: string; cycle: string; shiftDays: number; testName?: string },
   template: Template,
   settings: Pick<Settings, 'taskStatuses' | 'scheduleStatuses' | 'windowStatuses'>,
   now: Date = new Date(),
 ): Upgrade {
   const planned = firstStatusOf(settings.windowStatuses, 'planned')?.id ?? 'ws-planned'
-  const shift = (w: UpgradeWindow) => ({ ...shiftWindow(w, opts.shiftDays, now), status: planned })
+  const shift = (w: UpgradeWindow) => ({
+    ...shiftWindow(w, opts.shiftDays, now),
+    status: planned,
+    goNoGo: newGoNoGo(),
+  })
   const windows: Windows = {
     dev: shift(u.windows.dev),
     uat: u.windows.uat ? shift(u.windows.uat) : null,
@@ -376,6 +460,7 @@ export function duplicateForNextCycle(
       cycle: opts.cycle,
       snCaseUrl: '',
       windows,
+      testName: opts.testName,
     },
     template,
     settings,

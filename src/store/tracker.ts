@@ -11,7 +11,7 @@ import { immer } from 'zustand/middleware/immer'
 import { temporal } from 'zundo'
 import { useStore } from 'zustand'
 import type { Draft } from 'immer'
-import { emptyDoc } from '@/lib/model/defaults'
+import { customerDefaults, emptyDoc } from '@/lib/model/defaults'
 import type { Customer, Settings, StatusDef, StatusListKey, TrackerDoc } from '@/lib/model/types'
 import { newId } from '@/lib/id'
 import { customerColors } from '@/theme/brand'
@@ -69,7 +69,7 @@ export interface TrackerState {
   moveStatus: (list: StatusListKey, id: string, direction: -1 | 1) => void
 
   /** Rename an owner/assignee everywhere it is used (list, template defaults, tasks). */
-  renamePerson: (kind: 'owners' | 'assignees', from: string, to: string) => void
+  renamePerson: (kind: 'owners' | 'assignees' | 'people', from: string, to: string) => void
 
   /** Set or remove (undefined) the logo of a ServiceNow release. */
   setReleaseLogo: (family: string, logo: string | undefined) => void
@@ -198,7 +198,7 @@ export const useTracker = create<TrackerState>()(
         const name = to.trim()
         if (!name || name === from) return
         get().commit(
-          `Rename ${kind === 'owners' ? 'owner' : 'assignee'} "${from}" → "${name}"`,
+          `Rename ${kind === 'owners' ? 'owner' : kind === 'people' ? 'person' : 'assignee'} "${from}" → "${name}"`,
           (d) => {
             d.settings[kind] = d.settings[kind].map((x) => (x === from ? name : x))
             for (const s of d.template.steps) {
@@ -209,6 +209,7 @@ export const useTracker = create<TrackerState>()(
               for (const t of u.tasks) {
                 if (kind === 'owners' && t.owner === from) t.owner = name
                 if (kind === 'assignees' && t.assignee === from) t.assignee = name
+                if (kind === 'people' && t.assignedTo === from) t.assignedTo = name
               }
             }
           },
@@ -239,11 +240,7 @@ export const useTracker = create<TrackerState>()(
               name,
               shortName: shortNameOf(name),
               color: customerColors[(offset + i) % customerColors.length] ?? '#94A3B8',
-              snContact: '',
-              consultants: [],
-              instances: { dev: '', uat: '', prod: '' },
-              notes: '',
-              active: true,
+              ...customerDefaults(),
             })
           })
         })

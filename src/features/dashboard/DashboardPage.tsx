@@ -34,8 +34,8 @@ import {
   upcomingGoNoGo,
 } from '@/lib/agenda'
 import { phaseFlow, windowPosition } from '@/lib/timeline'
-import { ENV_LABEL, isActiveUpgrade } from '@/lib/upgrade/logic'
-import { ENV_KEYS, type Customer, type Settings, type Upgrade } from '@/lib/model/types'
+import { allWindows, isActiveUpgrade, windowName } from '@/lib/upgrade/logic'
+import type { Customer, Settings, Upgrade } from '@/lib/model/types'
 import { useNow } from '@/lib/useNow'
 import { toggleTask } from '@/features/week/AgendaRow'
 
@@ -84,7 +84,7 @@ function NextWindowCard({ settings }: { settings: Settings }) {
       </div>
     )
   }
-  const w = next.upgrade.windows[next.env]!
+  const w = next.window
   const running = next.start <= now
   const ms = (running ? next.end : next.start).getTime() - now.getTime()
   // whole minutes, rounded up: "0 min" only once the moment has come
@@ -120,7 +120,8 @@ function NextWindowCard({ settings }: { settings: Settings }) {
             label={customer?.name ?? 'Unknown'}
           />
           <span className="text-muted">·</span>
-          {ENV_LABEL[next.env]} <ArrowRight className="h-3.5 w-3.5 text-accent-text" />{' '}
+          {windowName(next.upgrade, next.key, customer)}{' '}
+          <ArrowRight className="h-3.5 w-3.5 text-accent-text" />{' '}
           <Release family={next.upgrade.family} size={18} />
         </span>
         <Tooltip
@@ -206,9 +207,13 @@ function HeatStrip({ today }: { today: string }) {
                     {d.tasks} open task{d.tasks === 1 ? '' : 's'} running
                   </span>
                   {d.windows.map((w) => (
-                    <span key={`${w.upgrade.id}${w.env}`}>
+                    <span key={`${w.upgrade.id}${w.key}`}>
                       ◆ {customers.find((c) => c.id === w.upgrade.customerId)?.name}:{' '}
-                      {ENV_LABEL[w.env]}
+                      {windowName(
+                        w.upgrade,
+                        w.key,
+                        customers.find((c) => c.id === w.upgrade.customerId),
+                      )}
                     </span>
                   ))}
                 </span>
@@ -263,9 +268,9 @@ function UpgradeCard({
   const pct = progressOf(upgrade.tasks, settings.taskStatuses)
   const flow = phaseFlow(upgrade, settings)
   const next = nextTasks(upgrade, settings, 3)
-  const nextWin = ENV_KEYS.map((env) => ({ env, w: upgrade.windows[env] }))
-    .filter((x) => x.w && windowPosition(x.w, settings.displayTimeZone).date >= today)
-    .sort((a, b) => a.w!.start.localeCompare(b.w!.start))[0]
+  const nextWin = allWindows(upgrade, customer)
+    .map((x) => ({ label: x.label, w: x.window }))
+    .filter((x) => windowPosition(x.w, settings.displayTimeZone).date >= today)[0]
 
   return (
     <motion.div
@@ -353,7 +358,7 @@ function UpgradeCard({
         {nextWin && nextWin.w && (
           <div className="mt-auto flex items-center justify-between border-t border-border pt-3 text-xs text-muted">
             <span className="flex items-center gap-1.5">
-              <Diamond className="h-3 w-3 fill-current text-accent-text" /> {ENV_LABEL[nextWin.env]}{' '}
+              <Diamond className="h-3 w-3 fill-current text-accent-text" /> {nextWin.label}{' '}
               {formatDay(nextWin.w.start.slice(0, 10), 'EEE d MMM')} {nextWin.w.start.slice(11)}{' '}
               {(() => {
                 try {

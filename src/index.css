@@ -97,6 +97,14 @@
       transparent 6px 12px
     );
   }
+  /* upgrades not approved yet (Proposed, Pending approval) */
+  .bg-pending-stripes {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--ut-surface) 55%, transparent) 0 4px,
+      transparent 4px 8px
+    );
+  }
   .tabular {
     font-variant-numeric: tabular-nums;
   }

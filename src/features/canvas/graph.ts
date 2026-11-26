@@ -7,6 +7,7 @@ import type { Edge, Node } from '@xyflow/react'
 import type { Customer, Phase, Settings, StatusDef, Task, Upgrade } from '@/lib/model/types'
 import { phaseFlow, type PhaseFlowStep } from '@/lib/timeline'
 import { progressOf } from '@/lib/template/schedule'
+import { envLabel } from '@/lib/upgrade/logic'
 
 export const HEADER_W = 250
 export const NODE_W = 196
@@ -27,6 +28,8 @@ export type LaneData = {
 
 export type PhaseData = {
   upgradeId: string
+  /** the customer's name for the test environment */
+  testName: string
   step: PhaseFlowStep
   tasks: Task[]
   windowStart: string | null
@@ -117,6 +120,7 @@ export function buildGraph({ upgrades, customers, settings, expanded }: BuildInp
         position,
         data: {
           upgradeId: u.id,
+          testName: envLabel('uat', byId.get(u.customerId)),
           step,
           tasks: u.tasks.filter((t) => t.phase === step.phase).sort((a, b) => a.order - b.order),
           windowStart: win?.start ?? null,

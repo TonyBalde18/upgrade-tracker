@@ -1,5 +1,7 @@
 import type {
+  Customer,
   EnvKey,
+  GoNoGo,
   Phase,
   Settings,
   StatusDef,
@@ -11,15 +13,14 @@ import type {
 } from './types'
 import { SCHEMA_VERSION } from './types'
 
+/**
+ * One flow: Proposed -> Pending approval -> Approved -> In progress -> Done.
+ * "planned" statuses are drawn striped on the timeline, "confirmed" and later solid.
+ */
 export const DEFAULT_SCHEDULE_STATUSES: StatusDef[] = [
-  { id: 'ss-requested', label: 'Requested', tone: 'amber', category: 'planned' },
-  { id: 'ss-confirmed', label: 'Confirmed', tone: 'sky', category: 'confirmed' },
-  {
-    id: 'ss-customer-start',
-    label: 'Customer confirmed start',
-    tone: 'teal',
-    category: 'confirmed',
-  },
+  { id: 'ss-proposed', label: 'Proposed', tone: 'slate', category: 'planned' },
+  { id: 'ss-requested', label: 'Pending approval', tone: 'amber', category: 'planned' },
+  { id: 'ss-confirmed', label: 'Approved', tone: 'sky', category: 'confirmed' },
   {
     id: 'ss-rescheduled',
     label: 'Rescheduled (auto-upgrade)',
@@ -61,6 +62,29 @@ export const ALLOWED_CATEGORIES = {
   taskStatuses: ['planned', 'active', 'done', 'blocked', 'na'],
 } as const
 
+export const DEFAULT_ENV_NAMES = { dev: 'DEV', uat: 'UAT', prod: 'PROD' } as const
+
+/** Go / No-Go of a window before anyone decided. */
+export function newGoNoGo(): GoNoGo {
+  return { decision: 'pending', date: null, by: '' }
+}
+
+/** Fields of a new customer besides id, name and colour. */
+export function customerDefaults(): Omit<Customer, 'id' | 'name' | 'shortName' | 'color'> {
+  return {
+    snContact: '',
+    consultants: [],
+    instances: { dev: '', uat: '', prod: '' },
+    envNames: { ...DEFAULT_ENV_NAMES },
+    currentRelease: '',
+    currentPatch: '',
+    releaseCheckedAt: null,
+    documents: [],
+    notes: '',
+    active: true,
+  }
+}
+
 export function defaultSettings(): Settings {
   return {
     displayTimeZone: 'Europe/Lisbon',
@@ -71,6 +95,7 @@ export function defaultSettings(): Settings {
     defaultWindowDurationHours: 3,
     owners: ['P4M', 'Client', 'P4M & Client'],
     assignees: ['SDM', 'MS team', 'Client'],
+    people: [],
     scheduleStatuses: DEFAULT_SCHEDULE_STATUSES.map((s) => ({ ...s })),
     windowStatuses: DEFAULT_WINDOW_STATUSES.map((s) => ({ ...s })),
     taskStatuses: DEFAULT_TASK_STATUSES.map((s) => ({ ...s })),
@@ -94,7 +119,7 @@ const STANDARD_STEPS: Row[] = [
   ['Run upgrade preview', 'Preparation', 'P4M', 'SDM', 'dev', -21, 'task'],
   ['Review upgrade planning', 'Preparation', 'P4M', 'SDM', 'dev', -18, 'task'],
   ['Prepare test scripts', 'Preparation', 'Client', 'Client', 'dev', -10, 'task'],
-  ['Freeze on DEV instance', 'Preparation', 'P4M & Client', 'SDM', 'dev', -3, 'milestone'],
+  ['Freeze on DEV instance', 'Preparation', 'P4M & Client', 'SDM', 'dev', -3, 'task'],
   [
     'Move all finished update sets to Prod',
     'Preparation',
@@ -126,11 +151,21 @@ const STANDARD_STEPS: Row[] = [
     'task',
     3,
   ],
-  ['Schedule clone from Prod to UAT', 'UAT', 'P4M', 'MS team', 'uat', -1, 'milestone'],
-  ['Upgrade UAT to {family} release', 'UAT', 'P4M', 'MS team', 'uat', 0, 'milestone', 1, 'window'],
-  ['Push fix update sets to UAT', 'UAT', 'P4M', 'MS team', 'uat', 1, 'task'],
+  ['Schedule clone from Prod to {test}', 'UAT', 'P4M', 'MS team', 'uat', -1, 'milestone'],
+  [
+    'Upgrade {test} to {family} release',
+    'UAT',
+    'P4M',
+    'MS team',
+    'uat',
+    0,
+    'milestone',
+    1,
+    'window',
+  ],
+  ['Push fix update sets to {test}', 'UAT', 'P4M', 'MS team', 'uat', 1, 'task'],
   ['User acceptance testing', 'UAT', 'Client', 'Client', 'uat', 1, 'task', 5],
-  ['Fix UAT testing issues', 'UAT', 'P4M', 'MS team', 'uat', 2, 'task', 5],
+  ['Fix {test} testing issues', 'UAT', 'P4M', 'MS team', 'uat', 2, 'task', 5],
   [
     'Alignment call - confirm progress on testing and fixes',
     'Go-live',

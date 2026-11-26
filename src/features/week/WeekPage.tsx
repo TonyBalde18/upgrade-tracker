@@ -245,7 +245,7 @@ export default function WeekPage() {
                         kind={row.item.kind}
                         upgrade={row.item.upgrade}
                         task={row.item.task}
-                        env={row.item.env}
+                        windowKey={row.item.windowKey}
                         customer={customerById.get(row.item.upgrade.customerId)}
                         settings={settings}
                       />

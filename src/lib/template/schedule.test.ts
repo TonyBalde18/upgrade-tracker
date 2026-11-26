@@ -9,6 +9,7 @@ const win = (start: string, tz = 'Europe/Zurich'): UpgradeWindow => ({
   durationHours: 3,
   status: 'ws-planned',
   updatedAt: '2026-01-01T00:00:00.000Z',
+  goNoGo: { decision: 'pending', date: null, by: '' },
 })
 
 const settings = defaultSettings()

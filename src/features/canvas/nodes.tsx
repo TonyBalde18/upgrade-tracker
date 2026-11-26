@@ -108,7 +108,7 @@ export const PhaseNodeView = memo(function PhaseNodeView({ data }: NodeProps<Pha
   const reduced = useReducedMotion()
   const tone = phaseTone[step.phase]
   const span = step.span
-  const label = PHASE_LABEL[step.phase] ?? step.phase
+  const label = PHASE_LABEL[step.phase] ?? (step.phase === 'UAT' ? data.testName : step.phase)
   const doneId = firstStatusOf(settings.taskStatuses, 'done')?.id
   const plannedId = firstStatusOf(settings.taskStatuses, 'planned')?.id
 

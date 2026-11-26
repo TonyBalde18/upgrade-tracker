@@ -37,7 +37,7 @@ const SECTIONS = [
   { id: 'time', label: 'Time & dates', icon: Clock },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'releases', label: 'Releases', icon: Rocket },
-  { id: 'people', label: 'Owners & assignees', icon: Users },
+  { id: 'people', label: 'People', icon: Users },
   { id: 'statuses', label: 'Statuses', icon: Tags },
 ] as const
 
@@ -272,13 +272,14 @@ export default function SettingsPage() {
             </Section>
             <Section
               id="people"
-              title="Owners & assignees"
+              title="Owners, assignees & people"
               icon={<Users className="h-4 w-4" />}
-              description="Pick lists for tasks and template steps."
+              description="Pick lists for steps. Owner and Assignee are teams or roles; Assigned to is the person doing the step."
             >
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <PeopleListEditor kind="owners" label="Owners" />
                 <PeopleListEditor kind="assignees" label="Assignees" />
+                <PeopleListEditor kind="people" label="Assigned to (people)" />
               </div>
             </Section>
             <Section

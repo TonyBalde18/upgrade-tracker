@@ -13,8 +13,11 @@ import {
   CalendarClock,
   Copy,
   ExternalLink,
+  FolderOpen,
   History,
   LayoutTemplate,
+  Lightbulb,
+  Plus,
   MoreHorizontal,
   MoveHorizontal,
   RefreshCw,
@@ -28,7 +31,7 @@ import { ENV_KEYS } from '@/lib/model/types'
 import { addDaysIso } from '@/lib/dates'
 import { countManual, firstStatusOf, progressOf, statusCategory } from '@/lib/template/schedule'
 import {
-  ENV_LABEL,
+  envLabel,
   activeUpgradeFor,
   isActiveUpgrade,
   makeWindow,
@@ -37,6 +40,9 @@ import {
   windowWarnings,
 } from '@/lib/upgrade/logic'
 import {
+  addExtraWindow,
+  removeExtraWindow,
+  updateExtraWindow,
   applyTemplateToUpgrade,
   deleteUpgrade,
   duplicateUpgrade,
@@ -60,6 +66,8 @@ import { StatusCell } from './cells'
 import { WindowCard } from './WindowCard'
 import { TaskTable, safeUrl, type TableMode } from './TaskTable'
 import { ActivityLog } from './ActivityLog'
+import { DetailsPanel, previousLessons } from './DetailsPanel'
+import { useIsViewer } from '@/store/auth'
 import { DuplicateDialog, RecalcDialog, ShiftDialog } from './PlanDialogs'
 import { useToday } from './gantt'
 
@@ -118,6 +126,8 @@ export default function PlanPage() {
     writeString('planMode', m)
   }
   const [logOpen, setLogOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const viewer = useIsViewer()
   const [recalcOpen, setRecalcOpen] = useState(false)
   const [shiftOpen, setShiftOpen] = useState(false)
   const [dupOpen, setDupOpen] = useState(false)
@@ -155,9 +165,13 @@ export default function PlanPage() {
       if (env && win && statusCategory(state.settings.taskStatuses, status) === 'done') {
         const wDone = firstStatusOf(state.settings.windowStatuses, 'done')
         if (wDone && statusCategory(state.settings.windowStatuses, win.status) !== 'done') {
-          toast(`Mark the ${ENV_LABEL[env]} window as ${wDone.label} too?`, {
+          const name = envLabel(
+            env,
+            state.customers.find((c) => c.id === u.customerId),
+          )
+          toast(`Mark the ${name} window as ${wDone.label} too?`, {
             action: {
-              label: `Mark ${ENV_LABEL[env]} ${wDone.label}`,
+              label: `Mark ${name} ${wDone.label}`,
               onClick: () => updateWindow(u.id, env, { status: wDone.id }),
             },
             duration: 8000,
@@ -188,7 +202,7 @@ export default function PlanPage() {
   const onWindowChange = (env: EnvKey, patch: Partial<Omit<UpgradeWindow, 'updatedAt'>>) => {
     updateWindow(upgrade.id, env, patch)
     if (patch.start) {
-      toast(`${ENV_LABEL[env]} window moved`, {
+      toast(`${envLabel(env, customer)} window moved`, {
         description: 'Recalculate the task dates from the windows?',
         action: { label: 'Recalculate', onClick: () => startRecalc() },
         duration: 8000,
@@ -243,9 +257,9 @@ export default function PlanPage() {
   const removeUat = async () => {
     if (
       await confirm({
-        title: 'No UAT for this upgrade?',
-        body: 'The UAT window is removed and the UAT steps are kept with status N/A. You can add UAT again later (Ctrl+Z also works).',
-        confirmLabel: 'Set UAT to N/A',
+        title: `No ${testName} for this upgrade?`,
+        body: `The ${testName} window is removed and its steps are kept with status N/A. You can add ${testName} again later (Ctrl+Z also works).`,
+        confirmLabel: `Set ${testName} to N/A`,
       })
     )
       setUat(upgrade.id, null)
@@ -260,7 +274,18 @@ export default function PlanPage() {
     return null
   })()
 
-  const warnings = windowWarnings(upgrade.windows)
+  const testName = envLabel('uat', customer)
+  const warnings = windowWarnings(upgrade.windows).map((w) =>
+    w
+      .replace(/\bUAT\b/g, testName)
+      .replace(/\bDEV\b/g, envLabel('dev', customer))
+      .replace(/\bPROD\b/g, envLabel('prod', customer)),
+  )
+  const earlier = previousLessons(upgrade, doc.upgrades)
+  const addWindow = () => {
+    const name = window.prompt('Name of the extra window (e.g. TEMP, Sandbox):', 'TEMP')?.trim()
+    if (name) addExtraWindow(upgrade.id, name)
+  }
   const caseUrl = safeUrl(upgrade.snCaseUrl)
 
   return (
@@ -354,7 +379,32 @@ export default function PlanPage() {
               { value: 'table', label: 'Full table' },
             ]}
           />
-          <Button onClick={() => setLogOpen((v) => !v)} aria-pressed={logOpen}>
+          <Button
+            onClick={() => {
+              setDetailsOpen((v) => !v)
+              setLogOpen(false)
+            }}
+            aria-pressed={detailsOpen}
+          >
+            {earlier.length > 0 ? (
+              <Lightbulb className="h-4 w-4 text-warning" />
+            ) : (
+              <FolderOpen className="h-4 w-4" />
+            )}{' '}
+            Docs & lessons
+            {upgrade.documents.length > 0 && (
+              <span className="rounded-full bg-surface-3 px-1.5 text-[0.65rem] tabular">
+                {upgrade.documents.length}
+              </span>
+            )}
+          </Button>
+          <Button
+            onClick={() => {
+              setLogOpen((v) => !v)
+              setDetailsOpen(false)
+            }}
+            aria-pressed={logOpen}
+          >
             <History className="h-4 w-4" /> Activity
           </Button>
           <Tooltip content="Recalculate dates from the windows">
@@ -449,20 +499,59 @@ export default function PlanPage() {
       </div>
 
       {/* windows */}
-      <motion.div layout className="grid shrink-0 grid-cols-1 gap-3 md:grid-cols-3">
+      <motion.div
+        layout
+        className={
+          upgrade.extraWindows.length
+            ? 'flex shrink-0 snap-x gap-3 overflow-x-auto pb-1 [&>*]:min-w-[min(330px,85vw)] [&>*]:snap-start'
+            : 'grid shrink-0 grid-cols-1 gap-3 md:grid-cols-3'
+        }
+      >
         {ENV_KEYS.map((env) => (
           <WindowCard
             key={env}
-            env={env}
+            label={envLabel(env, customer)}
             window={upgrade.windows[env]}
             settings={settings}
+            readOnly={viewer}
             instanceUrl={safeUrl(customer?.instances[env] ?? '') ?? undefined}
             onChange={(patch) => onWindowChange(env, patch)}
             onRemove={env === 'uat' ? () => void removeUat() : undefined}
             onAdd={env === 'uat' ? addUat : undefined}
           />
         ))}
+        {upgrade.extraWindows.map((x) => (
+          <WindowCard
+            key={x.id}
+            label={x.name}
+            window={x}
+            settings={settings}
+            readOnly={viewer}
+            onChange={(patch) => updateExtraWindow(upgrade.id, x.id, patch)}
+            onRename={(name) => updateExtraWindow(upgrade.id, x.id, { name })}
+            onDelete={async () => {
+              if (
+                await confirm({
+                  title: `Remove the ${x.name} window?`,
+                  body: 'Its steps are kept. Ctrl+Z brings the window back.',
+                  confirmLabel: 'Remove window',
+                  danger: true,
+                })
+              )
+                removeExtraWindow(upgrade.id, x.id)
+            }}
+          />
+        ))}
       </motion.div>
+      {!viewer && (
+        <button
+          type="button"
+          onClick={addWindow}
+          className="-mt-2 flex w-fit cursor-pointer items-center gap-1 text-xs text-subtle hover:text-text"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add another window (temporary instance…)
+        </button>
+      )}
       {warnings.length > 0 && (
         <div className="flex items-center gap-2 text-xs text-warning" role="alert">
           <CalendarClock className="h-4 w-4" /> {warnings.join(' ')}
@@ -477,6 +566,15 @@ export default function PlanPage() {
         today={today}
         highlightTaskId={params.get('task')}
         onStatus={onTaskStatus}
+        customer={customer}
+      />
+      <DetailsPanel
+        upgrade={upgrade}
+        customer={customer}
+        earlier={earlier}
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        readOnly={viewer}
       />
 
       <ActivityLog

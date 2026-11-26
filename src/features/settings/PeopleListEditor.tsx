@@ -6,8 +6,14 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Tooltip } from '@/components/ui/Tooltip'
 
-/** Editable chips for the Owner / Assignee lists. Renaming updates every task and template step. */
-export function PeopleListEditor({ kind, label }: { kind: 'owners' | 'assignees'; label: string }) {
+/** Editable chips for the Owner / Assignee / Assigned to lists. Renaming updates every task. */
+export function PeopleListEditor({
+  kind,
+  label,
+}: {
+  kind: 'owners' | 'assignees' | 'people'
+  label: string
+}) {
   const values = useTracker((s) => s.doc.settings[kind])
   const updateSettings = useTracker((s) => s.updateSettings)
   const renamePerson = useTracker((s) => s.renamePerson)

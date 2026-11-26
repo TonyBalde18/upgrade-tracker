@@ -7,7 +7,11 @@ import type { Draft } from 'immer'
 import { addDaysIso, formatDay } from '@/lib/dates'
 import { newId } from '@/lib/id'
 import type {
+  Customer,
+  DocLink,
   EnvKey,
+  ExtraWindow,
+  GoNoGo,
   Phase,
   Task,
   TemplateStep,
@@ -15,9 +19,9 @@ import type {
   Upgrade,
   UpgradeWindow,
 } from '@/lib/model/types'
-import { defaultTemplate } from '@/lib/model/defaults'
+import { defaultTemplate, newGoNoGo } from '@/lib/model/defaults'
 import {
-  ENV_LABEL,
+  envLabel,
   applyTemplate,
   buildUpgrade,
   duplicateForNextCycle,
@@ -34,6 +38,21 @@ const st = () => useTracker.getState()
 function label(doc: TrackerDoc, u: Pick<Upgrade, 'customerId' | 'family'>): string {
   const c = doc.customers.find((x) => x.id === u.customerId)
   return `${c?.name ?? 'Unknown'} - ${u.family}`
+}
+
+function customerOf(doc: Pick<TrackerDoc, 'customers'>, u: Pick<Upgrade, 'customerId'>) {
+  return doc.customers.find((x) => x.id === u.customerId)
+}
+
+/** The customer's name for an environment, e.g. "PRP" for the test one. */
+function envName(doc: Pick<TrackerDoc, 'customers'>, u: Pick<Upgrade, 'customerId'>, env: EnvKey) {
+  return envLabel(env, customerOf(doc, u))
+}
+
+const GO_LABEL: Record<GoNoGo['decision'], string> = {
+  pending: 'Pending',
+  go: 'Go',
+  nogo: 'No-Go',
 }
 
 function statusLabel(
@@ -70,7 +89,11 @@ function log(u: Draft<Upgrade>, text: string, kind: 'auto' | 'note' = 'auto') {
 
 export function createUpgrade(input: NewUpgradeInput): string {
   const doc = st().doc
-  const u = buildUpgrade(input, doc.template, doc.settings)
+  const u = buildUpgrade(
+    { ...input, testName: input.testName ?? envName(doc, input, 'uat') },
+    doc.template,
+    doc.settings,
+  )
   st().commit(
     `${label(doc, u)}: upgrade created (${u.fromFamily} → ${u.family}, ${u.cycle})`,
     (d) => {
@@ -81,7 +104,10 @@ export function createUpgrade(input: NewUpgradeInput): string {
 }
 
 export type UpgradeMeta = Partial<
-  Pick<Upgrade, 'family' | 'fromFamily' | 'cycle' | 'snCaseUrl' | 'notes' | 'scheduleStatus'>
+  Pick<
+    Upgrade,
+    'family' | 'fromFamily' | 'cycle' | 'snCaseUrl' | 'notes' | 'scheduleStatus' | 'lessonsLearned'
+  >
 >
 
 export function updateUpgradeMeta(id: string, patch: UpgradeMeta) {
@@ -104,8 +130,9 @@ export function updateUpgradeMeta(id: string, patch: UpgradeMeta) {
         const steps = new Map(d.template.steps.map((s) => [s.id, s]))
         for (const t of u.tasks) {
           const step = t.templateStepId ? steps.get(t.templateStepId) : undefined
-          if (step && t.name === fillFamily(step.name, u.family))
-            t.name = fillFamily(step.name, patch.family)
+          const test = envName(d, u, 'uat')
+          if (step && t.name === fillFamily(step.name, u.family, test))
+            t.name = fillFamily(step.name, patch.family, test)
         }
         log(u, `Target release: ${u.family} → ${patch.family}`)
       }
@@ -123,10 +150,10 @@ export function updateWindow(
     id,
     (doc, u) => {
       if (patch.status)
-        return `${label(doc, u)}: ${ENV_LABEL[env]} window → ${statusLabel(doc, 'windowStatuses', patch.status)}`
+        return `${label(doc, u)}: ${envName(doc, u, env)} window → ${statusLabel(doc, 'windowStatuses', patch.status)}`
       if (patch.start)
-        return `${label(doc, u)}: ${ENV_LABEL[env]} window moved to ${formatDay(patch.start.slice(0, 10))} ${patch.start.slice(11)}`
-      return `${label(doc, u)}: edit ${ENV_LABEL[env]} window`
+        return `${label(doc, u)}: ${envName(doc, u, env)} window moved to ${formatDay(patch.start.slice(0, 10))} ${patch.start.slice(11)}`
+      return `${label(doc, u)}: edit ${envName(doc, u, env)} window`
     },
     (u, d) => {
       const w = u.windows[env]
@@ -134,12 +161,17 @@ export function updateWindow(
       if (patch.status && patch.status !== w.status)
         log(
           u,
-          `${ENV_LABEL[env]} window: ${statusLabel(d as TrackerDoc, 'windowStatuses', w.status)} → ${statusLabel(d as TrackerDoc, 'windowStatuses', patch.status)}`,
+          `${envName(d, u, env)} window: ${statusLabel(d as TrackerDoc, 'windowStatuses', w.status)} → ${statusLabel(d as TrackerDoc, 'windowStatuses', patch.status)}`,
+        )
+      if (patch.goNoGo && patch.goNoGo.decision !== w.goNoGo.decision)
+        log(
+          u,
+          `${envName(d, u, env)} Go / No-Go: ${GO_LABEL[w.goNoGo.decision]} → ${GO_LABEL[patch.goNoGo.decision]}`,
         )
       if (patch.start && patch.start !== w.start)
         log(
           u,
-          `${ENV_LABEL[env]} window moved: ${formatDay(w.start.slice(0, 10))} ${w.start.slice(11)} → ${formatDay(patch.start.slice(0, 10))} ${patch.start.slice(11)}`,
+          `${envName(d, u, env)} window moved: ${formatDay(w.start.slice(0, 10))} ${w.start.slice(11)} → ${formatDay(patch.start.slice(0, 10))} ${patch.start.slice(11)}`,
         )
       Object.assign(w, patch, { updatedAt: new Date().toISOString() })
     },
@@ -150,7 +182,8 @@ export function updateWindow(
 export function setUat(id: string, uat: UpgradeWindow | null) {
   editUpgrade(
     id,
-    (doc, u) => `${label(doc, u)}: ${uat ? 'add UAT window' : 'UAT not applicable'}`,
+    (doc, u) =>
+      `${label(doc, u)}: ${uat ? `add ${envName(doc, u, 'uat')} window` : `${envName(doc, u, 'uat')} not applicable`}`,
     (u, d) => {
       const next = setUatWindow(
         u as Upgrade,
@@ -163,8 +196,8 @@ export function setUat(id: string, uat: UpgradeWindow | null) {
       log(
         u,
         uat
-          ? `UAT window added (${formatDay(uat.start.slice(0, 10))})`
-          : 'UAT set to N/A: UAT steps marked N/A',
+          ? `${envName(d, u, 'uat')} window added (${formatDay(uat.start.slice(0, 10))})`
+          : `${envName(d, u, 'uat')} set to N/A: its steps marked N/A`,
       )
     },
   )
@@ -227,6 +260,7 @@ export function addTask(id: string, phase: Phase): string {
         kind: 'task',
         owner: d.settings.owners[0] ?? '',
         assignee: d.settings.assignees[0] ?? '',
+        assignedTo: '',
         status:
           firstStatusOf(
             d.settings.taskStatuses as TrackerDoc['settings']['taskStatuses'],
@@ -305,6 +339,7 @@ export function shiftDates(id: string, days: number, includeWindows: boolean) {
     (u) => {
       const next = shiftUpgrade(u as Upgrade, days, includeWindows)
       u.windows = next.windows
+      u.extraWindows = next.extraWindows
       u.tasks = next.tasks
       log(
         u,
@@ -318,7 +353,7 @@ export function applyTemplateToUpgrade(id: string): { added: number; detached: n
   const doc = st().doc
   const u = doc.upgrades.find((x) => x.id === id)
   if (!u) return { added: 0, detached: 0 }
-  const res = applyTemplate(u, doc.template, doc.settings)
+  const res = applyTemplate(u, doc.template, doc.settings, new Date(), envName(doc, u, 'uat'))
   editUpgrade(
     id,
     (d, x) => `${label(d, x)}: apply current template`,
@@ -340,7 +375,12 @@ export function duplicateUpgrade(
   const doc = st().doc
   const u = doc.upgrades.find((x) => x.id === id)
   if (!u) return null
-  const copy = duplicateForNextCycle(u, opts, doc.template, doc.settings)
+  const copy = duplicateForNextCycle(
+    u,
+    { ...opts, testName: envName(doc, u, 'uat') },
+    doc.template,
+    doc.settings,
+  )
   st().commit(`${label(doc, copy)}: duplicated for ${copy.cycle}`, (d) => {
     d.upgrades.push(copy)
   })
@@ -472,7 +512,7 @@ export function moveWindow(id: string, env: EnvKey, days: number, shiftDependent
   editUpgrade(
     id,
     (doc, u) =>
-      `${label(doc, u)}: ${ENV_LABEL[env]} window moved ${days > 0 ? '+' : ''}${days} day(s)${shiftDependents ? ' with its tasks' : ''}`,
+      `${label(doc, u)}: ${envName(doc, u, env)} window moved ${days > 0 ? '+' : ''}${days} day(s)${shiftDependents ? ' with its tasks' : ''}`,
     (u, d) => {
       const w = u.windows[env]
       if (!w) return
@@ -495,7 +535,7 @@ export function moveWindow(id: string, env: EnvKey, days: number, shiftDependent
       }
       log(
         u,
-        `${ENV_LABEL[env]} window moved: ${formatDay(from.slice(0, 10))} → ${formatDay(w.start.slice(0, 10))}${shiftDependents ? ` (${shifted} task(s) moved too)` : ''}`,
+        `${envName(d, u, env)} window moved: ${formatDay(from.slice(0, 10))} → ${formatDay(w.start.slice(0, 10))}${shiftDependents ? ` (${shifted} task(s) moved too)` : ''}`,
       )
     },
   )
@@ -507,5 +547,207 @@ export function resetCanvasPositions(ids: string[]) {
   if (targets.length === 0) return
   st().commit(`Canvas: auto-layout ${targets.length} lane(s)`, (d) => {
     for (const u of d.upgrades) if (ids.includes(u.id)) u.canvas.nodePositions = undefined
+  })
+}
+
+// --- extra windows, Go / No-Go, documents ----------------------------------------
+
+/** Update a standard ("dev", "uat", "prod") or extra ("x:<id>") window. */
+export function updateWindowByKey(
+  id: string,
+  key: string,
+  patch: Partial<Omit<UpgradeWindow, 'updatedAt'>>,
+) {
+  if (key === 'dev' || key === 'uat' || key === 'prod') updateWindow(id, key, patch)
+  else if (key.startsWith('x:')) updateExtraWindow(id, key.slice(2), patch)
+}
+
+/** Add a window outside DEV / test / PROD (temporary instance...), one week after PROD. */
+export function addExtraWindow(id: string, name: string): string {
+  const xid = newId('win')
+  editUpgrade(
+    id,
+    (doc, u) => `${label(doc, u)}: add window "${name}"`,
+    (u) => {
+      const p = u.windows.prod
+      u.extraWindows.push({
+        ...p,
+        id: xid,
+        name,
+        start: `${addDaysIso(p.start.slice(0, 10), 7)}${p.start.slice(10)}`,
+        status: u.windows.dev.status,
+        updatedAt: new Date().toISOString(),
+        goNoGo: newGoNoGo(),
+      })
+      log(u, `Window "${name}" added`)
+    },
+  )
+  return xid
+}
+
+export function updateExtraWindow(
+  id: string,
+  windowId: string,
+  patch: Partial<Omit<ExtraWindow, 'id' | 'updatedAt'>>,
+) {
+  editUpgrade(
+    id,
+    (doc, u) => {
+      const x = u.extraWindows.find((w) => w.id === windowId)
+      return `${label(doc, u)}: edit window "${x?.name ?? ''}"`
+    },
+    (u, d) => {
+      const x = u.extraWindows.find((w) => w.id === windowId)
+      if (!x) return
+      if (patch.status && patch.status !== x.status)
+        log(
+          u,
+          `${x.name} window: ${statusLabel(d as TrackerDoc, 'windowStatuses', x.status)} → ${statusLabel(d as TrackerDoc, 'windowStatuses', patch.status)}`,
+        )
+      if (patch.goNoGo && patch.goNoGo.decision !== x.goNoGo.decision)
+        log(
+          u,
+          `${x.name} Go / No-Go: ${GO_LABEL[x.goNoGo.decision]} → ${GO_LABEL[patch.goNoGo.decision]}`,
+        )
+      if (patch.start && patch.start !== x.start)
+        log(
+          u,
+          `${x.name} window moved: ${formatDay(x.start.slice(0, 10))} → ${formatDay(patch.start.slice(0, 10))}`,
+        )
+      Object.assign(x, patch, { updatedAt: new Date().toISOString() })
+    },
+  )
+}
+
+export function removeExtraWindow(id: string, windowId: string) {
+  editUpgrade(
+    id,
+    (doc, u) => {
+      const x = u.extraWindows.find((w) => w.id === windowId)
+      return `${label(doc, u)}: remove window "${x?.name ?? ''}"`
+    },
+    (u) => {
+      const x = u.extraWindows.find((w) => w.id === windowId)
+      u.extraWindows = u.extraWindows.filter((w) => w.id !== windowId)
+      if (x) log(u, `Window "${x.name}" removed`)
+    },
+  )
+}
+
+export function setUpgradeDocuments(id: string, documents: DocLink[], what: string) {
+  editUpgrade(
+    id,
+    (doc, u) => `${label(doc, u)}: ${what}`,
+    (u) => {
+      u.documents = documents
+    },
+  )
+}
+
+export function setCustomerDocuments(customerId: string, documents: DocLink[], what: string) {
+  const c = st().doc.customers.find((x) => x.id === customerId)
+  if (!c) return
+  st().commit(`${c.name}: ${what}`, (d) => {
+    const dc = d.customers.find((x) => x.id === customerId)
+    if (dc) dc.documents = documents
+  })
+}
+
+// --- several steps at once ------------------------------------------------------
+
+export type BulkPatch = Partial<Pick<Task, 'status' | 'owner' | 'assignee' | 'assignedTo'>> & {
+  /** move start and end by this many days */
+  shiftDays?: number
+}
+
+/** Apply the same change to several steps of one upgrade (one undo step). */
+export function bulkUpdateTasks(id: string, taskIds: string[], patch: BulkPatch): number {
+  const ids = new Set(taskIds)
+  let n = 0
+  const { shiftDays, ...fields } = patch
+  editUpgrade(
+    id,
+    (doc, u) => {
+      const what = patch.status
+        ? `→ ${statusLabel(doc, 'taskStatuses', patch.status)}`
+        : shiftDays
+          ? `dates ${shiftDays > 0 ? '+' : ''}${shiftDays} day(s)`
+          : `edit ${Object.keys(fields).join(', ')}`
+      return `${label(doc, u)}: ${ids.size} steps ${what}`
+    },
+    (u, d) => {
+      const stamp = new Date().toISOString()
+      for (const t of u.tasks) {
+        if (!ids.has(t.id)) continue
+        Object.assign(t, fields)
+        if (shiftDays && (t.start || t.end)) {
+          if (t.start) t.start = addDaysIso(t.start, shiftDays)
+          if (t.end) t.end = addDaysIso(t.end, shiftDays)
+          t.datesManuallySet = true
+        }
+        t.updatedAt = stamp
+        n++
+      }
+      const what = patch.status
+        ? `status → ${statusLabel(d as TrackerDoc, 'taskStatuses', patch.status)}`
+        : shiftDays
+          ? `dates moved ${shiftDays > 0 ? '+' : ''}${shiftDays} day(s)`
+          : Object.entries(fields)
+              .map(([k, v]) => `${k === 'assignedTo' ? 'assigned to' : k} → ${v || 'nobody'}`)
+              .join(', ')
+      log(u, `${n} steps changed at once: ${what}`)
+    },
+  )
+  return n
+}
+
+// --- customers ------------------------------------------------------------------
+
+/** Whole-word, case-sensitive match of an environment name inside a step name. */
+export function renameWord(text: string, from: string, to: string): string {
+  if (!from) return text
+  const esc = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return text.replace(new RegExp(`(^|[^A-Za-z0-9])${esc}(?=$|[^A-Za-z0-9])`, 'g'), `$1${to}`)
+}
+
+/**
+ * Change what a customer calls its environments. A renamed environment
+ * ("UAT" -> "PRP") is also renamed in the step names of that customer's upgrades.
+ */
+export function setEnvNames(customerId: string, envNames: Customer['envNames']) {
+  const c = st().doc.customers.find((x) => x.id === customerId)
+  if (!c) return
+  const clean = {
+    dev: envNames.dev.trim() || 'DEV',
+    uat: envNames.uat.trim() || 'UAT',
+    prod: envNames.prod.trim() || 'PROD',
+  }
+  const renames = (['dev', 'uat', 'prod'] as const)
+    .map((k) => ({ from: c.envNames[k], to: clean[k] }))
+    .filter((r) => r.from && r.from !== r.to)
+  if (renames.length === 0) return
+  st().commit(`${c.name}: environment names ${clean.dev} / ${clean.uat} / ${clean.prod}`, (d) => {
+    const dc = d.customers.find((x) => x.id === customerId)
+    if (!dc) return
+    dc.envNames = clean
+    for (const u of d.upgrades) {
+      if (u.customerId !== customerId) continue
+      let changed = 0
+      for (const t of u.tasks) {
+        let name = t.name
+        for (const r of renames) name = renameWord(name, r.from, r.to)
+        if (name !== t.name) {
+          t.name = name
+          changed++
+        }
+      }
+      if (changed) {
+        u.updatedAt = new Date().toISOString()
+        log(
+          u,
+          `${renames.map((r) => `${r.from} renamed to ${r.to}`).join(', ')} in ${changed} step name(s)`,
+        )
+      }
+    }
   })
 }

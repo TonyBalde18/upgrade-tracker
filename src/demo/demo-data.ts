@@ -4,7 +4,7 @@
  * Dates are relative to "today" so the demo always looks current.
  */
 import { addDaysIso, todayIn } from '@/lib/dates'
-import { emptyDoc } from '@/lib/model/defaults'
+import { DEFAULT_ENV_NAMES, emptyDoc, newGoNoGo } from '@/lib/model/defaults'
 import type { Customer, Task, TrackerDoc, Upgrade, UpgradeWindow } from '@/lib/model/types'
 import { generateTasks, statusCategory } from '@/lib/template/schedule'
 
@@ -124,7 +124,7 @@ const UPGRADES: DemoUpgrade[] = [
     prod: 20,
     time: '01:00',
     tz: 'Europe/Zurich',
-    status: 'ss-customer-start',
+    status: 'ss-confirmed',
   },
 ]
 
@@ -150,6 +150,11 @@ export function buildDemoDoc(now: Date = new Date()): TrackerDoc {
         uat: `https://${host}uat.service-now.com`,
         prod: `https://${host}.service-now.com`,
       },
+      envNames: { ...DEFAULT_ENV_NAMES },
+      currentRelease: 'Zurich',
+      currentPatch: '',
+      releaseCheckedAt: null,
+      documents: [],
       notes: 'Fictional demo customer.',
       active: c.key !== 'fabrikam',
     }
@@ -158,7 +163,17 @@ export function buildDemoDoc(now: Date = new Date()): TrackerDoc {
   const windowAt = (offset: number, time: string, tz: string): UpgradeWindow => {
     const date = addDaysIso(today, offset)
     const status = offset < 0 ? 'ws-done' : offset < 8 ? 'ws-confirmed' : 'ws-planned'
-    return { start: `${date}T${time}`, timeZone: tz, durationHours: 3, status, updatedAt: stamp }
+    return {
+      start: `${date}T${time}`,
+      timeZone: tz,
+      durationHours: 3,
+      status,
+      updatedAt: stamp,
+      goNoGo:
+        offset < 0
+          ? { decision: 'go', date: addDaysIso(today, offset - 3), by: 'SDM' }
+          : newGoNoGo(),
+    }
   }
 
   doc.upgrades = UPGRADES.map((u, i): Upgrade => {
@@ -192,6 +207,9 @@ export function buildDemoDoc(now: Date = new Date()): TrackerDoc {
       snCaseUrl: '',
       notes: '',
       windows,
+      extraWindows: [],
+      documents: [],
+      lessonsLearned: '',
       tasks,
       canvas: {},
       log: [{ at: stamp, text: 'Demo upgrade created', kind: 'auto' }],

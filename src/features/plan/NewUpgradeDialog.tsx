@@ -21,7 +21,7 @@ import { ENV_KEYS, PHASES } from '@/lib/model/types'
 import { FAMILY_SUGGESTIONS } from '@/lib/model/defaults'
 import { addDaysIso, formatDay, todayIn } from '@/lib/dates'
 import {
-  ENV_LABEL,
+  envLabel,
   activeUpgradeFor,
   cycleForDate,
   defaultWindows,
@@ -115,8 +115,15 @@ function Body() {
   }
 
   const preview = useMemo(
-    () => generateTasks({ template, windows, family: family || '{family}', settings }),
-    [template, windows, family, settings],
+    () =>
+      generateTasks({
+        template,
+        windows,
+        family: family || '{family}',
+        settings,
+        testName: envLabel('uat', customer),
+      }),
+    [template, windows, family, settings, customer],
   )
   const firstDate = preview
     .map((t) => t.start)
@@ -353,18 +360,24 @@ function Body() {
                         !w && 'bg-pattern-dots',
                       )}
                     >
-                      <div className="w-14 font-heading text-sm font-bold">{ENV_LABEL[env]}</div>
+                      <div className="w-14 font-heading text-sm font-bold">
+                        {envLabel(env, customer)}
+                      </div>
                       {env === 'uat' && (
                         <label className="mr-2 flex items-center gap-2 text-xs text-muted">
-                          <Switch checked={!!w} onCheckedChange={toggleUat} label="Has UAT" />
-                          {w ? 'UAT' : 'N/A'}
+                          <Switch
+                            checked={!!w}
+                            onCheckedChange={toggleUat}
+                            label={`Has ${envLabel('uat', customer)}`}
+                          />
+                          {w ? envLabel('uat', customer) : 'N/A'}
                         </label>
                       )}
                       {w ? (
                         <>
                           <input
                             type="date"
-                            aria-label={`${ENV_LABEL[env]} date`}
+                            aria-label={`${envLabel(env, customer)} date`}
                             value={w.start.slice(0, 10)}
                             onChange={(e) =>
                               /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) &&
@@ -374,7 +387,7 @@ function Body() {
                           />
                           <input
                             type="time"
-                            aria-label={`${ENV_LABEL[env]} time`}
+                            aria-label={`${envLabel(env, customer)} time`}
                             value={w.start.slice(11, 16)}
                             onChange={(e) =>
                               e.target.value &&
@@ -386,7 +399,7 @@ function Body() {
                             <TimeZoneSelect
                               value={w.timeZone}
                               onChange={(tz) => setWin(env, { timeZone: tz })}
-                              ariaLabel={`${ENV_LABEL[env]} time zone`}
+                              ariaLabel={`${envLabel(env, customer)} time zone`}
                             />
                           </div>
                           <label className="flex items-center gap-1 text-xs text-muted">
@@ -394,7 +407,7 @@ function Body() {
                               type="number"
                               min={0.5}
                               step={0.5}
-                              aria-label={`${ENV_LABEL[env]} duration in hours`}
+                              aria-label={`${envLabel(env, customer)} duration in hours`}
                               value={w.durationHours}
                               onChange={(e) =>
                                 Number(e.target.value) > 0 &&

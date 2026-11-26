@@ -5,9 +5,9 @@ import type { Customer, Settings, Task, Upgrade, EnvKey } from '@/lib/model/type
 import { formatDay, zoneAbbr, zonedToInstant } from '@/lib/dates'
 import { firstStatusOf, statusCategory } from '@/lib/template/schedule'
 import { windowPosition, windowTimeRange } from '@/lib/timeline'
-import { ENV_LABEL } from '@/lib/upgrade/logic'
+import { windowByKey, windowName } from '@/lib/upgrade/logic'
 import type { AgendaKind } from '@/lib/agenda'
-import { updateTask, updateWindow } from '@/store/upgradeActions'
+import { updateTask, updateWindowByKey } from '@/store/upgradeActions'
 import { phaseTone } from '@/theme/brand'
 import { QuickToggle } from '@/components/ui/QuickToggle'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -35,7 +35,7 @@ export const AgendaRow = memo(function AgendaRow({
   upgrade,
   customer,
   task,
-  env,
+  windowKey,
   settings,
   late,
 }: {
@@ -43,12 +43,14 @@ export const AgendaRow = memo(function AgendaRow({
   upgrade: Upgrade
   customer: Customer | undefined
   task?: Task
-  env?: EnvKey
+  /** set for windows: "dev" | "uat" | "prod" | "x:<id>" */
+  windowKey?: string
   settings: Settings
   late?: number
 }) {
-  if (env) {
-    const w = upgrade.windows[env]!
+  const w = windowKey ? windowByKey(upgrade, windowKey) : null
+  if (windowKey && w) {
+    const name = windowName(upgrade, windowKey, customer)
     const cat = statusCategory(settings.windowStatuses, w.status)
     const pos = windowPosition(w, settings.displayTimeZone)
     let instant: Date | null
@@ -58,19 +60,19 @@ export const AgendaRow = memo(function AgendaRow({
       instant = null
     }
     const done = cat === 'done'
-    const tone = ENV_TONE[env]
+    const tone = ENV_TONE[windowKey as EnvKey] ?? 'slate'
     return (
       <div className="relative flex items-center gap-3 overflow-hidden rounded-xl border border-accent/40 bg-accent-soft px-3 py-2.5">
         <span className="absolute top-0 bottom-0 left-0 w-1 bg-accent" aria-hidden />
         <QuickToggle
           done={done}
-          label={`Mark ${ENV_LABEL[env]} window ${done ? 'not done' : 'done'}`}
+          label={`Mark ${name} window ${done ? 'not done' : 'done'}`}
           onChange={(d) => {
             const s = d
               ? firstStatusOf(settings.windowStatuses, 'done')
               : (firstStatusOf(settings.windowStatuses, 'confirmed') ??
                 firstStatusOf(settings.windowStatuses, 'planned'))
-            if (s) updateWindow(upgrade.id, env, { status: s.id })
+            if (s) updateWindowByKey(upgrade.id, windowKey, { status: s.id })
           }}
         />
         <Diamond
@@ -81,7 +83,7 @@ export const AgendaRow = memo(function AgendaRow({
         <Link to={`/upgrades/${upgrade.id}`} className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 text-sm">
             <span className="font-semibold">
-              {ENV_LABEL[env]} window → {upgrade.family}
+              {name} window → {upgrade.family}
             </span>
             <CustomerChip
               logo={customer?.logo}

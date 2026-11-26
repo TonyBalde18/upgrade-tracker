@@ -207,6 +207,8 @@ const popCls =
 const itemCls =
   'relative flex cursor-pointer select-none items-center gap-2 rounded-md py-1.5 pl-2 pr-8 text-sm outline-none data-[highlighted]:bg-surface-2'
 
+const NONE = '__none__'
+
 /** Pick one of a list (owner, assignee). Keeps a value that is no longer in the list. */
 export function PickCell({
   value,
@@ -214,17 +216,23 @@ export function PickCell({
   onCommit,
   ariaLabel,
   col,
+  emptyLabel,
 }: {
   value: string
   options: string[]
   onCommit: (v: string) => void
   ariaLabel: string
   col: string
+  /** offer an empty choice with this label (e.g. "Nobody") */
+  emptyLabel?: string
 }) {
   const all = value && !options.includes(value) ? [value, ...options] : options
   return (
     <div data-col={col} className="min-w-0">
-      <S.Root value={value || undefined} onValueChange={onCommit}>
+      <S.Root
+        value={value || (emptyLabel ? NONE : undefined)}
+        onValueChange={(v) => onCommit(v === NONE ? '' : v)}
+      >
         <S.Trigger
           aria-label={ariaLabel}
           className={cn(cellInput, 'flex items-center truncate text-left cursor-pointer')}
@@ -234,6 +242,11 @@ export function PickCell({
         <S.Portal>
           <S.Content position="popper" sideOffset={4} className={popCls}>
             <S.Viewport className="p-1">
+              {emptyLabel && (
+                <S.Item value={NONE} className={cn(itemCls, 'text-subtle')}>
+                  <S.ItemText>{emptyLabel}</S.ItemText>
+                </S.Item>
+              )}
               {all.map((o) => (
                 <S.Item key={o} value={o} className={itemCls}>
                   <S.ItemText>{o}</S.ItemText>

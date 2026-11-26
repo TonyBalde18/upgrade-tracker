@@ -29,8 +29,8 @@ import {
   todayIn,
   nowIn,
 } from '@/lib/dates'
-import { dependentTaskIds, prodClashes } from '@/lib/timeline'
-import { ENV_LABEL, isActiveUpgrade } from '@/lib/upgrade/logic'
+import { dependentTaskIds, prodClashes, weekendWindows, windowClashes } from '@/lib/timeline'
+import { envLabel, isActiveUpgrade, windowName } from '@/lib/upgrade/logic'
 import { useReducedMotion } from '@/theme/motion'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -40,7 +40,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { cn } from '@/components/ui/cn'
 import { CustomerFilter } from '@/components/ui/CustomerFilter'
 import { useElementWidth } from '@/features/plan/gantt'
-import { labelWidthFor, ROW_H, TimelineRow, type DragPreview } from './TimelineRow'
+import { labelWidthFor, ROW_H, ROW_H_COMPACT, TimelineRow, type DragPreview } from './TimelineRow'
 
 type Zoom = '2w' | '6w' | 'q' | '6m' | 'y'
 const ZOOM_DAYS: Record<Zoom, number> = { '2w': 14, '6w': 42, q: 91, '6m': 182, y: 365 }
@@ -59,6 +59,7 @@ export default function TimelinePage() {
   const doc = useTracker((s) => s.doc)
   const { settings, customers, upgrades, template } = doc
   const setNewUpgradeOpen = useUi((s) => s.setNewUpgradeOpen)
+  const rowH = useUi((s) => s.compact) ? ROW_H_COMPACT : ROW_H
   const reduced = useReducedMotion()
   const today = todayIn(settings.displayTimeZone)
 
@@ -117,10 +118,13 @@ export default function TimelinePage() {
   }, [rows, today])
 
   const clashes = useMemo(() => prodClashes(rows, settings), [rows, settings])
-  const clashUpgrades = useMemo(
-    () => new Set(clashes.nights.flatMap((c) => c.entries.map((e) => e.upgradeId))),
-    [clashes],
+  // any window of two customers on the same night, and upcoming weekend windows
+  const allClash = useMemo(() => windowClashes(rows, settings), [rows, settings])
+  const clashKeys = useMemo(
+    () => new Set(allClash.flatMap((c) => c.entries.map((e) => `${e.upgradeId}:${e.key}`))),
+    [allClash],
   )
+  const weekend = useMemo(() => weekendWindows(rows, settings, today), [rows, settings, today])
 
   // --- zoom with animation, keeping the centre date in place -----------------
   const centreDay = () => {
@@ -255,7 +259,7 @@ export default function TimelinePage() {
     if (!pending) return
     moveWindow(pending.upgradeId, pending.env, pending.days, withTasks)
     toast.success(
-      `${ENV_LABEL[pending.env]} window moved ${pending.days > 0 ? '+' : ''}${pending.days} day(s)`,
+      `${envLabel(pending.env, customerById.get(pendingUpgrade?.customerId ?? ''))} window moved ${pending.days > 0 ? '+' : ''}${pending.days} day(s)`,
       {
         action: { label: 'Undo', onClick: undo },
       },
@@ -291,7 +295,7 @@ export default function TimelinePage() {
   const todayX =
     (diffDaysIso(today, range.start) + (now.getHours() * 60 + now.getMinutes()) / 1440) * px
   const weekClash = new Map(clashes.weeks.map((c) => [c.key, c]))
-  const nightClash = clashes.nights
+  const nightClash = allClash
 
   if (upgrades.length === 0) {
     return (
@@ -365,14 +369,16 @@ export default function TimelinePage() {
             <Popover.Trigger asChild>
               <Button
                 variant={nightClash.length ? 'danger' : 'ghost'}
-                disabled={!nightClash.length && !clashes.weeks.length}
+                disabled={!nightClash.length && !clashes.weeks.length && !weekend.length}
               >
                 <AlertTriangle className="h-4 w-4" />
                 {nightClash.length
-                  ? `${nightClash.length} PROD clash${nightClash.length > 1 ? 'es' : ''}`
+                  ? `${nightClash.length} clash${nightClash.length > 1 ? 'es' : ''}`
                   : clashes.weeks.length
                     ? `${clashes.weeks.length} busy PROD week(s)`
-                    : 'No PROD clashes'}
+                    : weekend.length
+                      ? `${weekend.length} weekend window(s)`
+                      : 'No clashes'}
               </Button>
             </Popover.Trigger>
             <Popover.Portal>
@@ -381,7 +387,7 @@ export default function TimelinePage() {
                 sideOffset={6}
                 className="ut-pop z-50 w-96 rounded-xl border border-border bg-surface p-3 shadow-lift"
               >
-                <div className="eyebrow mb-2">Same night (two customers on PROD)</div>
+                <div className="eyebrow mb-2">Same night (two customers, any environment)</div>
                 {nightClash.length === 0 && <p className="mb-2 text-sm text-subtle">None.</p>}
                 {nightClash.map((c) => (
                   <ClashItem
@@ -392,7 +398,21 @@ export default function TimelinePage() {
                     strong
                   />
                 ))}
-                <div className="eyebrow mt-3 mb-2">Same ISO week</div>
+                <div className="eyebrow mt-3 mb-2">On a weekend</div>
+                {weekend.length === 0 && <p className="mb-2 text-sm text-subtle">None.</p>}
+                {weekend.map((e) => (
+                  <ClashItem
+                    key={`${e.upgradeId}:${e.key}`}
+                    label={`${windowName(
+                      upgrades.find((u) => u.id === e.upgradeId) ?? { extraWindows: [] },
+                      e.key,
+                      customerById.get(e.customerId),
+                    )} window on ${formatDay(e.local.slice(0, 10), 'EEEE')}`}
+                    entries={[e]}
+                    onClick={() => scrollToDay(e.local.slice(0, 10), 0.5)}
+                  />
+                ))}
+                <div className="eyebrow mt-3 mb-2">PROD in the same ISO week</div>
                 {clashes.weeks.length === 0 && <p className="text-sm text-subtle">None.</p>}
                 {clashes.weeks.map((c) => (
                   <ClashItem
@@ -529,7 +549,8 @@ export default function TimelinePage() {
                   px={px}
                   width={width}
                   firstOfGroup={i === 0 || rows[i - 1]!.customerId !== u.customerId}
-                  clash={clashUpgrades.has(u.id)}
+                  clashKeys={clashKeys}
+                  rowH={rowH}
                   preview={preview && preview.markerId.startsWith(`${u.id}:`) ? preview : null}
                   suppressClick={suppressClick}
                   labelW={LABEL_W}
@@ -545,13 +566,14 @@ export default function TimelinePage() {
               )}
             </div>
           </DndContext>
-          <div style={{ height: ROW_H }} />
+          <div style={{ height: rowH }} />
         </div>
       </div>
 
       <p className="text-xs text-subtle">
         Drag the background to pan, drag a ◆ window to reschedule it. Week numbers are ISO-8601. Red
-        stripes: two customers on PROD the same night (noon to noon); red weeks: same ISO week.
+        stripes: two customers have a window the same night (noon to noon); red weeks: PROD in the
+        same ISO week. Faded, striped bars: upgrade not approved yet.
       </p>
 
       <Dialog
@@ -562,7 +584,11 @@ export default function TimelinePage() {
             setPreview(null)
           }
         }}
-        title={pending ? `Move the ${ENV_LABEL[pending.env]} window?` : ''}
+        title={
+          pending
+            ? `Move the ${envLabel(pending.env, customerById.get(pendingUpgrade?.customerId ?? ''))} window?`
+            : ''
+        }
         description={
           pending && pendingUpgrade ? (
             <MoveSummary

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import {
   ArrowLeft,
   Building2,
+  CheckCheck,
   ClipboardPaste,
   ExternalLink,
   Lock,
@@ -18,10 +19,15 @@ import {
 import { useTracker } from '@/store/tracker'
 import { useUi } from '@/store/ui'
 import { deleteCustomer } from '@/store/upgradeActions'
+import { undo } from '@/store/tracker'
 import type { Customer, EnvKey } from '@/lib/model/types'
+import { customerDefaults } from '@/lib/model/defaults'
 import { customerColors } from '@/theme/brand'
-import { formatDay, todayIn } from '@/lib/dates'
-import { activeUpgradeFor, ENV_LABEL } from '@/lib/upgrade/logic'
+import { diffDaysIso, formatDay, todayIn } from '@/lib/dates'
+import { activeUpgradeFor } from '@/lib/upgrade/logic'
+import { setCustomerDocuments, setEnvNames } from '@/store/upgradeActions'
+import { DocLinksEditor } from '@/components/ui/DocLinks'
+import { ReleaseIcon } from '@/components/ui/Release'
 import { progressOf } from '@/lib/template/schedule'
 import { newId } from '@/lib/id'
 import { Button } from '@/components/ui/Button'
@@ -115,6 +121,18 @@ function ConsultantsEditor({
       </div>
     </div>
   )
+}
+
+const ENV_ROLE: Record<EnvKey, string> = {
+  dev: 'Development environment',
+  uat: 'Test environment',
+  prod: 'Production environment',
+}
+
+/** Release info older than about 3 months should be checked again. */
+function releaseStale(checked: string | null, today: string): boolean {
+  if (!checked) return true
+  return diffDaysIso(today, checked) > 92
 }
 
 function CustomerEditor({ customer }: { customer: Customer }) {
@@ -219,13 +237,39 @@ function CustomerEditor({ customer }: { customer: Customer }) {
               ))}
             </div>
           </Field>
-          {(['dev', 'uat', 'prod'] as EnvKey[]).map((env) => {
-            const url = safeUrl(customer.instances[env])
-            return (
-              <Field key={env} label={`${ENV_LABEL[env]} instance`} htmlFor={`c-${env}`}>
-                <div className="flex gap-2">
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <div className="text-xs font-medium text-muted">Environments</div>
+            <p className="-mt-1 text-xs text-subtle">
+              Name each environment as the customer calls it (the test one can be UAT, TEST, STAG,
+              PRP...). The name is used everywhere and in step names.
+            </p>
+            {(['dev', 'uat', 'prod'] as EnvKey[]).map((env) => {
+              const url = safeUrl(customer.instances[env])
+              return (
+                <div key={env} className="flex gap-2">
+                  <Tooltip content={ENV_ROLE[env]}>
+                    <span className="w-full max-w-24 shrink-0">
+                      <BlurInput
+                        id={`c-name-${env}`}
+                        value={customer.envNames[env]}
+                        aria-label={`Name of the ${ENV_ROLE[env].toLowerCase()}`}
+                        onSave={(v) => {
+                          const name = v.trim()
+                          if (!name || name === customer.envNames[env]) return
+                          const from = customer.envNames[env]
+                          setEnvNames(customer.id, { ...customer.envNames, [env]: name })
+                          toast(`${from} renamed to ${name}`, {
+                            description: 'Step names of this customer were updated too.',
+                            action: { label: 'Undo', onClick: undo },
+                          })
+                        }}
+                        className="font-semibold"
+                      />
+                    </span>
+                  </Tooltip>
                   <BlurInput
                     id={`c-${env}`}
+                    aria-label={`${customer.envNames[env]} instance link`}
                     value={customer.instances[env]}
                     onSave={(v) => save({ instances: { ...customer.instances, [env]: v } })}
                     placeholder="https://….service-now.com"
@@ -236,15 +280,64 @@ function CustomerEditor({ customer }: { customer: Customer }) {
                       target="_blank"
                       rel="noreferrer noopener"
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-subtle hover:text-accent-text"
-                      aria-label={`Open ${ENV_LABEL[env]} instance`}
+                      aria-label={`Open ${customer.envNames[env]} instance`}
                     >
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   )}
                 </div>
-              </Field>
-            )
-          })}
+              )
+            })}
+          </div>
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <div className="text-xs font-medium text-muted">Current release</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <ReleaseIcon family={customer.currentRelease} size={28} />
+              <span className="w-40">
+                <BlurInput
+                  id="c-release"
+                  value={customer.currentRelease}
+                  aria-label="Current release"
+                  placeholder="e.g. Zurich"
+                  onSave={(currentRelease) => save({ currentRelease })}
+                />
+              </span>
+              <span className="w-40">
+                <BlurInput
+                  id="c-patch"
+                  value={customer.currentPatch}
+                  aria-label="Current patch"
+                  placeholder="e.g. Patch 4"
+                  onSave={(currentPatch) => save({ currentPatch })}
+                />
+              </span>
+              <Button
+                size="sm"
+                onClick={() => save({ releaseCheckedAt: today })}
+                aria-label="Mark the release as checked today"
+              >
+                <CheckCheck className="h-3.5 w-3.5" /> Checked today
+              </Button>
+              <span
+                className={cn(
+                  'text-xs',
+                  releaseStale(customer.releaseCheckedAt, today) ? 'text-warning' : 'text-subtle',
+                )}
+              >
+                {customer.releaseCheckedAt
+                  ? `Last checked ${formatDay(customer.releaseCheckedAt)}`
+                  : 'Never checked'}
+                {releaseStale(customer.releaseCheckedAt, today) && ' (check again: over 3 months)'}
+              </span>
+            </div>
+          </div>
+          <Field label="Documents" className="md:col-span-2">
+            <DocLinksEditor
+              links={customer.documents}
+              placeholder="SharePoint folder, contacts…"
+              onChange={(documents, what) => setCustomerDocuments(customer.id, documents, what)}
+            />
+          </Field>
           <Field label="Consultants" className="md:col-span-2">
             <ConsultantsEditor
               value={customer.consultants}
@@ -391,11 +484,7 @@ export default function CustomersPage() {
       name: 'New customer',
       shortName: 'NEW',
       color: customerColors[customers.length % customerColors.length] ?? '#94A3B8',
-      snContact: '',
-      consultants: [],
-      instances: { dev: '', uat: '', prod: '' },
-      notes: '',
-      active: true,
+      ...customerDefaults(),
     }
     upsert(c)
     navigate(`/customers/${c.id}`)

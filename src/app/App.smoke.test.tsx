@@ -176,7 +176,7 @@ describe('app smoke test', () => {
     cleanup = () => root.unmount()
     expect(el.textContent).toContain('Upgrade Tracker')
     if (hash === '#/') expect(el.textContent).toContain('Acme Corp')
-    if (hash === '#/settings') expect(el.textContent).toContain('Customer confirmed start')
+    if (hash === '#/settings') expect(el.textContent).toContain('Pending approval')
     if (hash === '#/customers/demo-acme') expect(el.textContent).toContain('Upgrade history')
     if (hash === '#/upgrades/demo-upg-1') {
       const values = Array.from(el.querySelectorAll('input')).map((i) => i.value)

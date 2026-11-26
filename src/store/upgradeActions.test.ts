@@ -13,6 +13,12 @@ import {
   updateUpgradeMeta,
   updateWindow,
   moveWindow,
+  addExtraWindow,
+  bulkUpdateTasks,
+  removeExtraWindow,
+  renameWord,
+  setEnvNames,
+  updateExtraWindow,
 } from './upgradeActions'
 
 const U = 'demo-upg-1' // Acme, has UAT
@@ -108,5 +114,69 @@ describe('upgrade actions', () => {
     expect(task('step-18').start).not.toBe(golive)
     expect(task('step-01').start).toBe(dev) // DEV-anchored tasks stay
     expect(upg().log[0]!.text).toContain('(9 task(s) moved too)')
+  })
+})
+
+describe('environments, extra windows, bulk edit', () => {
+  it('renames the test environment in step names of that customer only', () => {
+    const c = doc().customers.find((x) => x.id === upg().customerId)!
+    const other = doc().upgrades.find((u) => u.customerId !== c.id)!
+    setEnvNames(c.id, { ...c.envNames, uat: 'PRP' })
+    expect(doc().customers.find((x) => x.id === c.id)!.envNames.uat).toBe('PRP')
+    expect(task('step-12').name).toBe('Upgrade PRP to Australia release')
+    expect(task('step-11').name).toBe('Schedule clone from Prod to PRP')
+    // "User acceptance testing" has no whole-word UAT and stays
+    expect(task('step-14').name).toBe('User acceptance testing')
+    expect(other.tasks.some((t) => t.name.includes('PRP'))).toBe(false)
+    expect(upg().log[0]!.text).toMatch(/UAT renamed to PRP/)
+    undo()
+    expect(task('step-12').name).toBe('Upgrade UAT to Australia release')
+  })
+
+  it('renameWord only replaces whole words', () => {
+    expect(renameWord('Fix UAT testing issues', 'UAT', 'STAG')).toBe('Fix STAG testing issues')
+    expect(renameWord('UATX and UAT-2', 'UAT', 'TEST')).toBe('UATX and TEST-2')
+  })
+
+  it('new upgrades use the customer test name', () => {
+    const c = doc().customers.find((x) => x.id === upg().customerId)!
+    setEnvNames(c.id, { ...c.envNames, uat: 'STAG' })
+    applyTemplateToUpgrade(U)
+    expect(task('step-12').name).toBe('Upgrade STAG to Australia release')
+  })
+
+  it('adds, edits and removes an extra window', () => {
+    const id = addExtraWindow(U, 'TEMP')
+    expect(upg().extraWindows).toHaveLength(1)
+    updateExtraWindow(U, id, { goNoGo: { decision: 'go', date: '2026-12-01', by: 'SDM' } })
+    expect(upg().extraWindows[0]!.goNoGo.decision).toBe('go')
+    expect(upg().log[0]!.text).toMatch(/TEMP Go \/ No-Go: Pending → Go/)
+    shiftDates(U, 7, true)
+    removeExtraWindow(U, id)
+    expect(upg().extraWindows).toHaveLength(0)
+  })
+
+  it('records a Go / No-Go decision in the log', () => {
+    updateWindow(U, 'prod', { goNoGo: { decision: 'nogo', date: '2026-12-01', by: 'Customer' } })
+    expect(upg().windows.prod.goNoGo).toEqual({
+      decision: 'nogo',
+      date: '2026-12-01',
+      by: 'Customer',
+    })
+    expect(upg().log[0]!.text).toMatch(/PROD Go \/ No-Go: Pending → No-Go/)
+  })
+
+  it('changes several steps at once in one undo step', () => {
+    const ids = [task('step-01').id, task('step-02').id, task('step-03').id]
+    const before = task('step-02').start!
+    expect(bulkUpdateTasks(U, ids, { assignedTo: 'Ana' })).toBe(3)
+    expect(ids.every((id) => upg().tasks.find((t) => t.id === id)!.assignedTo === 'Ana')).toBe(true)
+    bulkUpdateTasks(U, ids, { shiftDays: 2 })
+    expect(task('step-02').start).not.toBe(before)
+    expect(task('step-02').datesManuallySet).toBe(true)
+    undo()
+    expect(task('step-02').start).toBe(before)
+    undo()
+    expect(task('step-01').assignedTo).toBe('')
   })
 })

@@ -26,8 +26,9 @@ export function statusCategory(list: StatusDef[], id: string): StatusCategory | 
   return list.find((s) => s.id === id)?.category
 }
 
-export function fillFamily(name: string, family: string): string {
-  return name.replaceAll('{family}', family || '{family}')
+/** "{family}" becomes the target release, "{test}" the customer's name for the test environment. */
+export function fillFamily(name: string, family: string, testName = 'UAT'): string {
+  return name.replaceAll('{family}', family || '{family}').replaceAll('{test}', testName || 'UAT')
 }
 
 export interface StepSchedule {
@@ -63,6 +64,8 @@ export interface GenerateOptions {
   windows: Windows
   family: string
   settings: Pick<Settings, 'taskStatuses'>
+  /** the customer's name for the test environment (UAT, TEST, STAG, PRP...) */
+  testName?: string
   now?: Date
 }
 
@@ -72,6 +75,7 @@ export function generateTasks({
   windows,
   family,
   settings,
+  testName = 'UAT',
   now = new Date(),
 }: GenerateOptions): Task[] {
   const planned = firstStatusOf(settings.taskStatuses, 'planned')?.id ?? 'ts-not-started'
@@ -82,11 +86,12 @@ export function generateTasks({
     return {
       id: newId('tsk'),
       templateStepId: step.id,
-      name: fillFamily(step.name, family),
+      name: fillFamily(step.name, family, testName),
       phase: step.phase,
       kind: step.kind,
       owner: step.defaultOwner,
       assignee: step.defaultAssignee,
+      assignedTo: '',
       status: s.applicable ? planned : na,
       start: s.start,
       end: s.end,

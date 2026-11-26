@@ -3,10 +3,17 @@
  * upgrade window and a 30-day activity heat strip. Pure functions over the document.
  */
 import { addDaysIso, diffDaysIso, zonedToInstant } from '@/lib/dates'
-import type { EnvKey, Settings, StatusCategory, Task, TrackerDoc, Upgrade } from '@/lib/model/types'
-import { ENV_KEYS } from '@/lib/model/types'
+import type {
+  EnvKey,
+  Settings,
+  StatusCategory,
+  Task,
+  TrackerDoc,
+  Upgrade,
+  UpgradeWindow,
+} from '@/lib/model/types'
 import { statusCategory } from '@/lib/template/schedule'
-import { isActiveUpgrade } from '@/lib/upgrade/logic'
+import { allWindows, isActiveUpgrade } from '@/lib/upgrade/logic'
 import { windowPosition } from '@/lib/timeline'
 
 type Doc = Pick<TrackerDoc, 'upgrades' | 'settings'>
@@ -65,6 +72,8 @@ export interface AgendaItem {
   upgrade: Upgrade
   task?: Task
   env?: EnvKey
+  /** windows: "dev" | "uat" | "prod" | "x:<id>" */
+  windowKey?: string
 }
 
 /**
@@ -79,19 +88,19 @@ export function agenda(doc: Doc, from: string, to: string): AgendaItem[] {
   const items: AgendaItem[] = []
   const inRange = (d: string | null) => !!d && d >= from && d <= to
   for (const upgrade of liveUpgrades(doc)) {
-    for (const env of ENV_KEYS) {
-      const w = upgrade.windows[env]
-      if (!w) continue
+    for (const nw of allWindows(upgrade)) {
+      const w = nw.window
       if (statusCategory(doc.settings.windowStatuses, w.status) === 'cancelled') continue
       const pos = windowPosition(w, doc.settings.displayTimeZone)
       if (inRange(pos.date))
         items.push({
-          key: `${upgrade.id}:w:${env}`,
+          key: `${upgrade.id}:w:${nw.key}`,
           date: pos.date,
           time: pos.local.slice(11, 16),
           kind: 'window',
           upgrade,
-          env,
+          env: nw.env ?? undefined,
+          windowKey: nw.key,
         })
     }
     for (const task of upgrade.tasks) {
@@ -150,15 +159,20 @@ export function groupByDay(items: AgendaItem[]): { date: string; items: AgendaIt
 }
 
 /** The next window that has not started yet (or is running now). */
-export function nextWindow(
-  doc: Doc,
-  now: Date,
-): { upgrade: Upgrade; env: EnvKey; start: Date; end: Date } | null {
-  let best: { upgrade: Upgrade; env: EnvKey; start: Date; end: Date } | null = null
+export interface NextWindow {
+  upgrade: Upgrade
+  env: EnvKey | null
+  /** "dev" | "uat" | "prod" | "x:<id>" */
+  key: string
+  window: UpgradeWindow
+  start: Date
+  end: Date
+}
+
+export function nextWindow(doc: Doc, now: Date): NextWindow | null {
+  let best: NextWindow | null = null
   for (const upgrade of liveUpgrades(doc)) {
-    for (const env of ENV_KEYS) {
-      const w = upgrade.windows[env]
-      if (!w) continue
+    for (const { env, key, window: w } of allWindows(upgrade)) {
       const cat = statusCategory(doc.settings.windowStatuses, w.status)
       if (cat === 'done' || cat === 'cancelled') continue
       let start: Date
@@ -169,7 +183,7 @@ export function nextWindow(
       }
       const end = new Date(start.getTime() + w.durationHours * 3_600_000)
       if (end <= now) continue
-      if (!best || start < best.start) best = { upgrade, env, start, end }
+      if (!best || start < best.start) best = { upgrade, env, key, window: w, start, end }
     }
   }
   return best
@@ -197,7 +211,7 @@ export function upcomingGoNoGo(doc: Doc, today: string, days = 21): TaskRef[] {
 export interface HeatDay {
   date: string
   tasks: number
-  windows: { upgrade: Upgrade; env: EnvKey }[]
+  windows: { upgrade: Upgrade; env: EnvKey | null; key: string }[]
   /** 0..1 */
   level: number
 }
@@ -220,11 +234,10 @@ export function activityHeat(doc: Doc, today: string, days = 30): HeatDay[] {
       const b = Math.min(days - 1, diffDaysIso(tEnd, today))
       for (let i = a; i <= b; i++) out[i]!.tasks++
     }
-    for (const env of ENV_KEYS) {
-      const w = upgrade.windows[env]
-      if (!w || statusCategory(doc.settings.windowStatuses, w.status) === 'cancelled') continue
+    for (const { env, key, window: w } of allWindows(upgrade)) {
+      if (statusCategory(doc.settings.windowStatuses, w.status) === 'cancelled') continue
       const i = diffDaysIso(windowPosition(w, doc.settings.displayTimeZone).date, today)
-      if (i >= 0 && i < days) out[i]!.windows.push({ upgrade, env })
+      if (i >= 0 && i < days) out[i]!.windows.push({ upgrade, env, key })
     }
   }
   const score = (d: HeatDay) => d.tasks + d.windows.length * 4

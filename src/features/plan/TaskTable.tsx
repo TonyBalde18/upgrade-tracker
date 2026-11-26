@@ -1,5 +1,13 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { memo, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 import {
   DndContext,
   KeyboardSensor,
@@ -21,6 +29,7 @@ import { ChevronRight, Diamond, ExternalLink, GripVertical, Hand, Plus, Trash2 }
 import { toast } from 'sonner'
 import {
   PHASES,
+  type Customer,
   type Phase,
   type Settings,
   type Task,
@@ -32,6 +41,9 @@ import { statusCategory } from '@/lib/template/schedule'
 import { diffDaysIso, zoneAbbr } from '@/lib/dates'
 import { addTask, deleteTask, reorderTask, updateTask } from '@/store/upgradeActions'
 import { undo } from '@/store/tracker'
+import { useUi } from '@/store/ui'
+import { phaseLabel } from '@/lib/upgrade/logic'
+import { BulkBar } from './BulkBar'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { cn } from '@/components/ui/cn'
 import { DateCell, PickCell, StatusCell, TextCell, TimeCell } from './cells'
@@ -47,18 +59,22 @@ interface Col {
 
 const COLS: Record<TableMode, Col[]> = {
   split: [
-    { key: 'handle', label: '', width: 28 },
-    { key: 'name', label: 'Step', width: 280 },
+    { key: 'select', label: '', width: 26 },
+    { key: 'handle', label: '', width: 22 },
+    { key: 'name', label: 'Step', width: 260 },
+    { key: 'assignedTo', label: 'Assigned to', width: 116 },
     { key: 'status', label: 'Status', width: 148 },
     { key: 'start', label: 'Start', width: 124 },
     { key: 'end', label: 'End', width: 124 },
     { key: 'actions', label: '', width: 34 },
   ],
   table: [
-    { key: 'handle', label: '', width: 28 },
+    { key: 'select', label: '', width: 26 },
+    { key: 'handle', label: '', width: 22 },
     { key: 'name', label: 'Step', width: 300 },
     { key: 'owner', label: 'Owner', width: 116 },
     { key: 'assignee', label: 'Assignee', width: 108 },
+    { key: 'assignedTo', label: 'Assigned to', width: 124 },
     { key: 'status', label: 'Status', width: 148 },
     { key: 'start', label: 'Start', width: 124 },
     { key: 'end', label: 'End', width: 124 },
@@ -70,6 +86,7 @@ const COLS: Record<TableMode, Col[]> = {
 }
 
 const ROW_H = 44
+const ROW_H_COMPACT = 32
 
 /** Only http(s) links are rendered as links (never javascript: or data:). */
 export function safeUrl(u: string): string | null {
@@ -89,6 +106,9 @@ interface RowProps {
   anchorZone: string
   highlight: boolean
   onStatus: (task: Task, status: string) => void
+  selected: boolean
+  onSelect: (taskId: string, on: boolean, range: boolean) => void
+  rowH: number
 }
 
 const TaskRow = memo(function TaskRow({
@@ -101,6 +121,9 @@ const TaskRow = memo(function TaskRow({
   anchorZone,
   highlight,
   onStatus,
+  selected,
+  onSelect,
+  rowH,
 }: RowProps) {
   const {
     attributes,
@@ -114,7 +137,7 @@ const TaskRow = memo(function TaskRow({
   const style: CSSProperties = {
     transform: CSS.Translate.toString(transform),
     transition,
-    height: ROW_H,
+    height: rowH,
   }
   const cat = statusCategory(settings.taskStatuses, task.status)
   const upd = (patch: Partial<Task>) => updateTask(upgradeId, task.id, patch)
@@ -122,6 +145,20 @@ const TaskRow = memo(function TaskRow({
 
   const cell = (c: Col): ReactNode => {
     switch (c.key) {
+      case 'select':
+        return (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => undefined}
+            onClick={(e) => onSelect(task.id, !selected, e.shiftKey)}
+            aria-label={`Select ${task.name}`}
+            className={cn(
+              'ml-1 h-3.5 w-3.5 cursor-pointer accent-[var(--ut-accent)]',
+              !selected && 'opacity-30 group-hover:opacity-100 focus:opacity-100',
+            )}
+          />
+        )
       case 'handle':
         return (
           <button
@@ -187,6 +224,17 @@ const TaskRow = memo(function TaskRow({
             options={settings.assignees}
             ariaLabel="Assignee"
             onCommit={(assignee) => upd({ assignee })}
+          />
+        )
+      case 'assignedTo':
+        return (
+          <PickCell
+            col="assignedTo"
+            value={task.assignedTo}
+            options={settings.people}
+            emptyLabel="Nobody"
+            ariaLabel="Assigned to"
+            onCommit={(assignedTo) => upd({ assignedTo })}
           />
         )
       case 'status':
@@ -305,11 +353,13 @@ const TaskRow = memo(function TaskRow({
         'group flex border-b border-border/60',
         isDragging && 'relative z-30 shadow-lift',
         cat === 'na' && 'opacity-55',
+        selected && 'bg-accent-soft/60',
       )}
     >
       <div
         className={cn(
           'flex shrink-0 items-center gap-0 bg-surface',
+          selected && 'bg-accent-soft',
           gantt && 'sticky left-0 z-10 border-r border-border',
         )}
         style={{ width: leftWidth }}
@@ -325,7 +375,7 @@ const TaskRow = memo(function TaskRow({
           range={gantt.range}
           dayW={gantt.dayW}
           today={gantt.today}
-          height={ROW_H - 1}
+          height={rowH - 1}
           bar={{
             start: task.start,
             end: task.end,
@@ -333,7 +383,7 @@ const TaskRow = memo(function TaskRow({
             milestone: task.kind === 'milestone',
             category: cat,
             label: task.name,
-            detail: `${task.owner} · ${task.assignee}`,
+            detail: [task.assignedTo, task.owner, task.assignee].filter(Boolean).join(' · '),
           }}
         />
       )}
@@ -349,6 +399,7 @@ export function TaskTable({
   today,
   highlightTaskId,
   onStatus,
+  customer,
 }: {
   upgrade: Upgrade
   settings: Settings
@@ -357,8 +408,13 @@ export function TaskTable({
   today: string
   highlightTaskId: string | null
   onStatus: (task: Task, status: string) => void
+  customer?: Customer
 }) {
   const [collapsed, setCollapsed] = useState<Set<Phase>>(new Set())
+  const compact = useUi((s) => s.compact)
+  const rowH = compact ? ROW_H_COMPACT : ROW_H
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [lastPicked, setLastPicked] = useState<string | null>(null)
   const { ref: scrollRef, width } = useElementWidth<HTMLDivElement>()
   const cols = COLS[mode]
   const leftWidth = cols.reduce((s, c) => s + c.width, 0)
@@ -370,6 +426,34 @@ export function TaskTable({
   const groups = useMemo(
     () => PHASES.map((phase) => ({ phase, tasks: sorted.filter((t) => t.phase === phase) })),
     [sorted],
+  )
+  // the visible order, for shift-click ranges
+  const ordered = useMemo(() => groups.flatMap((g) => g.tasks.map((t) => t.id)), [groups])
+
+  // forget selected steps that were deleted
+  useEffect(() => {
+    setSelected((s) => {
+      const keep = [...s].filter((id) => upgrade.tasks.some((t) => t.id === id))
+      return keep.length === s.size ? s : new Set(keep)
+    })
+  }, [upgrade.tasks])
+
+  const onSelect = useCallback(
+    (taskId: string, on: boolean, range: boolean) => {
+      setSelected((s) => {
+        const n = new Set(s)
+        if (range && lastPicked) {
+          const a = ordered.indexOf(lastPicked)
+          const b = ordered.indexOf(taskId)
+          if (a >= 0 && b >= 0)
+            for (const id of ordered.slice(Math.min(a, b), Math.max(a, b) + 1)) n.add(id)
+        } else if (on) n.add(taskId)
+        else n.delete(taskId)
+        return n
+      })
+      setLastPicked(taskId)
+    },
+    [lastPicked, ordered],
   )
 
   const range = useMemo(
@@ -433,161 +517,179 @@ export function TaskTable({
     })
 
   return (
-    <div
-      ref={scrollRef}
-      data-grid
-      className="relative min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-surface"
-    >
-      <div style={{ minWidth: leftWidth + (gantt ? range.days * dayW : 0) }}>
-        {/* header */}
-        <div className="sticky top-0 z-20 flex border-b border-border bg-surface-2">
-          <div
-            className={cn(
-              'flex shrink-0 items-end bg-surface-2 pb-1.5',
-              gantt && 'sticky left-0 z-30 border-r border-border',
-            )}
-            style={{ width: leftWidth, height: gantt ? 48 : 36 }}
-          >
-            {cols.map((c) => (
-              <div key={c.key} className="eyebrow truncate px-2.5" style={{ width: c.width }}>
-                {c.label}
-              </div>
-            ))}
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      {selected.size > 0 && (
+        <BulkBar
+          upgradeId={upgrade.id}
+          settings={settings}
+          ids={[...selected]}
+          onClear={() => setSelected(new Set())}
+          onSelectAll={() => setSelected(new Set(ordered))}
+          total={ordered.length}
+        />
+      )}
+      <div
+        ref={scrollRef}
+        data-grid
+        className="relative min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-surface"
+      >
+        <div style={{ minWidth: leftWidth + (gantt ? range.days * dayW : 0) }}>
+          {/* header */}
+          <div className="sticky top-0 z-20 flex border-b border-border bg-surface-2">
+            <div
+              className={cn(
+                'flex shrink-0 items-end bg-surface-2 pb-1.5',
+                gantt && 'sticky left-0 z-30 border-r border-border',
+              )}
+              style={{ width: leftWidth, height: gantt ? 48 : 36 }}
+            >
+              {cols.map((c) => (
+                <div key={c.key} className="eyebrow truncate px-2.5" style={{ width: c.width }}>
+                  {c.label}
+                </div>
+              ))}
+            </div>
+            {gantt && <GanttHeader range={range} dayW={dayW} today={today} />}
           </div>
-          {gantt && <GanttHeader range={range} dayW={dayW} today={today} />}
-        </div>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={onDragEnd}
-          modifiers={[verticalOnly]}
-        >
-          {groups.map(({ phase, tasks }) => {
-            const isCollapsed = collapsed.has(phase)
-            const done = tasks.filter(
-              (t) => statusCategory(settings.taskStatuses, t.status) === 'done',
-            ).length
-            const relevant = tasks.filter(
-              (t) => statusCategory(settings.taskStatuses, t.status) !== 'na',
-            ).length
-            const tone = phaseTone[phase]
-            const starts = tasks
-              .map((t) => t.start)
-              .filter((d): d is string => !!d)
-              .sort()
-            const ends = tasks
-              .map((t) => t.end)
-              .filter((d): d is string => !!d)
-              .sort()
-            return (
-              <section key={phase} aria-label={`${phase} phase`}>
-                <div className="flex h-10 border-b border-border bg-surface">
-                  <div
-                    className={cn(
-                      'flex shrink-0 items-center gap-2 bg-surface px-2',
-                      gantt && 'sticky left-0 z-10 border-r border-border',
-                    )}
-                    style={{ width: leftWidth }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggle(phase)}
-                      aria-expanded={!isCollapsed}
-                      className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md py-1 text-left"
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+            modifiers={[verticalOnly]}
+          >
+            {groups.map(({ phase, tasks }) => {
+              const isCollapsed = collapsed.has(phase)
+              const done = tasks.filter(
+                (t) => statusCategory(settings.taskStatuses, t.status) === 'done',
+              ).length
+              const relevant = tasks.filter(
+                (t) => statusCategory(settings.taskStatuses, t.status) !== 'na',
+              ).length
+              const tone = phaseTone[phase]
+              const starts = tasks
+                .map((t) => t.start)
+                .filter((d): d is string => !!d)
+                .sort()
+              const ends = tasks
+                .map((t) => t.end)
+                .filter((d): d is string => !!d)
+                .sort()
+              return (
+                <section key={phase} aria-label={`${phase} phase`}>
+                  <div className="flex h-10 border-b border-border bg-surface">
+                    <div
+                      className={cn(
+                        'flex shrink-0 items-center gap-2 bg-surface px-2',
+                        gantt && 'sticky left-0 z-10 border-r border-border',
+                      )}
+                      style={{ width: leftWidth }}
                     >
-                      <motion.span
-                        animate={{ rotate: isCollapsed ? 0 : 90 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      >
-                        <ChevronRight className="h-4 w-4 text-subtle" />
-                      </motion.span>
-                      <span
-                        className="h-2.5 w-2.5 rounded-[3px]"
-                        style={{ backgroundColor: `var(--tone-${tone}-solid)` }}
-                        aria-hidden
-                      />
-                      <span className="font-heading text-sm font-semibold">{phase}</span>
-                      <span className="text-xs text-subtle tabular">
-                        {done}/{relevant} done
-                      </span>
-                    </button>
-                    <Tooltip content={`Add a task to ${phase}`}>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (isCollapsed) toggle(phase)
-                          const id = addTask(upgrade.id, phase)
-                          setTimeout(
-                            () =>
-                              document
-                                .querySelector<HTMLInputElement>(
-                                  `[data-task-id="${id}"] [data-col="name"] input`,
-                                )
-                                ?.select(),
-                            80,
-                          )
-                        }}
-                        className="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs text-subtle hover:bg-surface-2 hover:text-text"
+                        onClick={() => toggle(phase)}
+                        aria-expanded={!isCollapsed}
+                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md py-1 text-left"
                       >
-                        <Plus className="h-3.5 w-3.5" /> Add
+                        <motion.span
+                          animate={{ rotate: isCollapsed ? 0 : 90 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                        >
+                          <ChevronRight className="h-4 w-4 text-subtle" />
+                        </motion.span>
+                        <span
+                          className="h-2.5 w-2.5 rounded-[3px]"
+                          style={{ backgroundColor: `var(--tone-${tone}-solid)` }}
+                          aria-hidden
+                        />
+                        <span className="font-heading text-sm font-semibold">
+                          {phaseLabel(phase, customer)}
+                        </span>
+                        <span className="text-xs text-subtle tabular">
+                          {done}/{relevant} done
+                        </span>
                       </button>
-                    </Tooltip>
-                  </div>
-                  {gantt && starts[0] && (
-                    <div className="relative" style={{ width: range.days * dayW }}>
-                      <div
-                        className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full opacity-40"
-                        style={{
-                          left: diffDaysIso(starts[0], range.start) * dayW,
-                          width:
-                            (diffDaysIso(ends[ends.length - 1] ?? starts[0], starts[0]) + 1) * dayW,
-                          backgroundColor: `var(--tone-${tone}-solid)`,
-                        }}
-                      />
+                      <Tooltip content={`Add a task to ${phaseLabel(phase, customer)}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isCollapsed) toggle(phase)
+                            const id = addTask(upgrade.id, phase)
+                            setTimeout(
+                              () =>
+                                document
+                                  .querySelector<HTMLInputElement>(
+                                    `[data-task-id="${id}"] [data-col="name"] input`,
+                                  )
+                                  ?.select(),
+                              80,
+                            )
+                          }}
+                          className="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs text-subtle hover:bg-surface-2 hover:text-text"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Add
+                        </button>
+                      </Tooltip>
                     </div>
-                  )}
-                </div>
-                <AnimatePresence initial={false}>
-                  {!isCollapsed && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ type: 'spring', stiffness: 380, damping: 38 }}
-                      className="overflow-hidden"
-                    >
-                      <SortableContext
-                        items={tasks.map((t) => t.id)}
-                        strategy={verticalListSortingStrategy}
+                    {gantt && starts[0] && (
+                      <div className="relative" style={{ width: range.days * dayW }}>
+                        <div
+                          className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full opacity-40"
+                          style={{
+                            left: diffDaysIso(starts[0], range.start) * dayW,
+                            width:
+                              (diffDaysIso(ends[ends.length - 1] ?? starts[0], starts[0]) + 1) *
+                              dayW,
+                            backgroundColor: `var(--tone-${tone}-solid)`,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <AnimatePresence initial={false}>
+                    {!isCollapsed && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ type: 'spring', stiffness: 380, damping: 38 }}
+                        className="overflow-hidden"
                       >
-                        {tasks.map((t) => (
-                          <TaskRow
-                            key={t.id}
-                            task={t}
-                            upgradeId={upgrade.id}
-                            settings={settings}
-                            cols={cols}
-                            leftWidth={leftWidth}
-                            gantt={gantt}
-                            anchorZone={zoneOf(t)}
-                            highlight={t.id === highlightTaskId}
-                            onStatus={onStatus}
-                          />
-                        ))}
-                      </SortableContext>
-                      {tasks.length === 0 && (
-                        <div className="px-12 py-3 text-xs text-subtle">
-                          No tasks in this phase.
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </section>
-            )
-          })}
-        </DndContext>
+                        <SortableContext
+                          items={tasks.map((t) => t.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {tasks.map((t) => (
+                            <TaskRow
+                              key={t.id}
+                              task={t}
+                              upgradeId={upgrade.id}
+                              settings={settings}
+                              cols={cols}
+                              leftWidth={leftWidth}
+                              gantt={gantt}
+                              anchorZone={zoneOf(t)}
+                              highlight={t.id === highlightTaskId}
+                              onStatus={onStatus}
+                              selected={selected.has(t.id)}
+                              onSelect={onSelect}
+                              rowH={rowH}
+                            />
+                          ))}
+                        </SortableContext>
+                        {tasks.length === 0 && (
+                          <div className="px-12 py-3 text-xs text-subtle">
+                            No tasks in this phase.
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </section>
+              )
+            })}
+          </DndContext>
+        </div>
       </div>
     </div>
   )

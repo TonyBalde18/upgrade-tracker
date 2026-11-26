@@ -30,7 +30,9 @@ import {
   type TimeMode,
 } from '@/lib/model/types'
 import { addDaysIso, formatDay, todayIn } from '@/lib/dates'
-import { defaultWindows, ENV_LABEL } from '@/lib/upgrade/logic'
+import { defaultWindows } from '@/lib/upgrade/logic'
+
+const ANCHOR_LABEL = { dev: 'DEV', uat: 'Test (UAT)', prod: 'PROD' } as const
 import { generateTasks, statusCategory } from '@/lib/template/schedule'
 import { phaseTone } from '@/theme/brand'
 import { Button } from '@/components/ui/Button'
@@ -152,7 +154,7 @@ const StepRow = memo(function StepRow({
               ariaLabel="Anchor window"
               options={(['dev', 'uat', 'prod'] as const).map((e) => ({
                 value: e,
-                label: ENV_LABEL[e],
+                label: ANCHOR_LABEL[e],
               }))}
               onCommit={(anchor) => up({ anchor })}
             />
@@ -392,8 +394,10 @@ export default function TemplatePage() {
       <p className="flex items-center gap-2 text-xs text-muted">
         <Info className="h-3.5 w-3.5 shrink-0" />
         Offsets are calendar days from the anchor window (negative = before).{' '}
-        <code className="rounded bg-surface-3 px-1">{'{family}'}</code> becomes the target release.
-        Changes apply to new upgrades; use “Apply template” on a plan to update an existing one.
+        <code className="rounded bg-surface-3 px-1">{'{family}'}</code> becomes the target release,{' '}
+        <code className="rounded bg-surface-3 px-1">{'{test}'}</code> the customer's name for the
+        test environment (UAT, TEST, STAG, PRP...). Changes apply to new upgrades; use “Apply
+        template” on a plan to update an existing one.
       </p>
 
       <div

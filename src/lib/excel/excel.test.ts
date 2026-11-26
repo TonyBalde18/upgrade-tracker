@@ -70,6 +70,7 @@ describe('excel model', () => {
         durationHours: 3,
         status: 'x',
         updatedAt: '',
+        goNoGo: { decision: 'pending', date: null, by: '' },
       }),
     ).toBe('Mon 23 Nov 2026, 00:15-03:15 CET (Europe/Zurich)')
   })
