@@ -20,6 +20,7 @@ import { useTracker } from '@/store/tracker'
 import { useUi } from '@/store/ui'
 import { deleteCustomer } from '@/store/upgradeActions'
 import { undo } from '@/store/tracker'
+import { useIsViewer } from '@/store/auth'
 import type { Customer, EnvKey } from '@/lib/model/types'
 import { customerDefaults } from '@/lib/model/defaults'
 import { customerColors } from '@/theme/brand'
@@ -143,6 +144,7 @@ function CustomerEditor({ customer }: { customer: Customer }) {
   const { settings } = doc
   const today = todayIn(settings.displayTimeZone)
   const save = (patch: Partial<Customer>) => upsert({ ...customer, ...patch })
+  const viewer = useIsViewer()
   const upgrades = useMemo(
     () =>
       doc.upgrades
@@ -335,6 +337,7 @@ function CustomerEditor({ customer }: { customer: Customer }) {
             <DocLinksEditor
               links={customer.documents}
               placeholder="SharePoint folder, contacts…"
+              readOnly={viewer}
               onChange={(documents, what) => setCustomerDocuments(customer.id, documents, what)}
             />
           </Field>

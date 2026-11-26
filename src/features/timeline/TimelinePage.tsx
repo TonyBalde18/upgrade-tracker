@@ -108,6 +108,7 @@ export default function TimelinePage() {
         ...u.tasks.flatMap((t) => [t.start, t.end]),
         u.windows.dev.start.slice(0, 10),
         u.windows.prod.start.slice(0, 10),
+        ...u.extraWindows.map((x) => x.start.slice(0, 10)),
       ])
       .filter((d): d is string => !!d)
       .sort()

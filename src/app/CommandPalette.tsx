@@ -72,6 +72,7 @@ export function CommandPalette() {
           upgradeId: u.id,
           taskId: t.id,
           label: t.name,
+          assignedTo: t.assignedTo,
           customer: customerById.get(u.customerId)?.name ?? 'Unknown customer',
           family: u.family,
         })),
@@ -295,7 +296,7 @@ export function CommandPalette() {
                           <Command.Item
                             key={s.key}
                             className={itemCls}
-                            value={`step ${s.label} ${s.customer} ${s.key}`}
+                            value={`step ${s.label} ${s.customer} ${s.assignedTo} ${s.key}`}
                             onSelect={() =>
                               run(() => navigate(`/upgrades/${s.upgradeId}?task=${s.taskId}`))
                             }

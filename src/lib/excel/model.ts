@@ -108,7 +108,13 @@ export interface PlanModel {
 
 /** "Mon 23 Nov 2026, 00:15-03:15 CET (Europe/Zurich)" */
 export function windowText(w: UpgradeWindow): string {
-  const start = zonedToInstant(w.start, w.timeZone)
+  let start: Date
+  try {
+    start = zonedToInstant(w.start, w.timeZone)
+  } catch {
+    // unknown time zone: show the window as written
+    return `${w.start.slice(0, 10)} ${w.start.slice(11, 16)} (${w.timeZone})`
+  }
   const end = new Date(start.getTime() + w.durationHours * 3_600_000)
   const day = formatInZone(start, w.timeZone, 'EEE d MMM yyyy')
   return `${day}, ${formatInZone(start, w.timeZone, 'HH:mm')}-${formatInZone(end, w.timeZone, 'HH:mm')} ${zoneAbbr(w.timeZone, start)} (${w.timeZone})`

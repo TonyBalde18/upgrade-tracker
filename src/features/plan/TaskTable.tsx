@@ -42,6 +42,7 @@ import { diffDaysIso, zoneAbbr } from '@/lib/dates'
 import { addTask, deleteTask, reorderTask, updateTask } from '@/store/upgradeActions'
 import { undo } from '@/store/tracker'
 import { useUi } from '@/store/ui'
+import { useIsViewer } from '@/store/auth'
 import { phaseLabel } from '@/lib/upgrade/logic'
 import { BulkBar } from './BulkBar'
 import { Tooltip } from '@/components/ui/Tooltip'
@@ -416,7 +417,9 @@ export function TaskTable({
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [lastPicked, setLastPicked] = useState<string | null>(null)
   const { ref: scrollRef, width } = useElementWidth<HTMLDivElement>()
-  const cols = COLS[mode]
+  const viewer = useIsViewer()
+  // view-only users can not change steps, so no selection checkboxes
+  const cols = viewer ? COLS[mode].filter((c) => c.key !== 'select') : COLS[mode]
   const leftWidth = cols.reduce((s, c) => s + c.width, 0)
 
   const sorted = useMemo(

@@ -97,7 +97,7 @@ export function PeopleListEditor({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder={`Add ${label.toLowerCase()}…`}
+          placeholder={kind === 'people' ? 'Add a person…' : `Add ${label.toLowerCase()}…`}
           aria-label={`New ${label.toLowerCase()}`}
         />
         <Button onClick={add} disabled={!draft.trim()} aria-label={`Add ${label.toLowerCase()}`}>

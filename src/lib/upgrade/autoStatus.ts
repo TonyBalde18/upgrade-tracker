@@ -31,7 +31,16 @@ export function autoStatusChanges(
   const out: AutoStatusChange[] = []
   for (const u of upgrades) {
     const cat = statusCategory(settings.scheduleStatuses, u.scheduleStatus)
-    const devStart = zonedToInstant(u.windows.dev.start, u.windows.dev.timeZone)
+    // a window with an invalid time zone is skipped instead of breaking the check
+    const at = (start: string, tz: string) => {
+      try {
+        return zonedToInstant(start, tz)
+      } catch {
+        return null
+      }
+    }
+    const devStart = at(u.windows.dev.start, u.windows.dev.timeZone)
+    if (!devStart) continue
     if (
       active &&
       (cat === 'planned' || cat === 'confirmed') &&
@@ -43,9 +52,9 @@ export function autoStatusChanges(
     }
     if (!done || cat !== 'active' || hasMarker(u, AUTO_DONE)) continue
     const prod = u.windows.prod
-    const prodEnd = new Date(
-      zonedToInstant(prod.start, prod.timeZone).getTime() + prod.durationHours * 3_600_000,
-    )
+    const prodStart = at(prod.start, prod.timeZone)
+    if (!prodStart) continue
+    const prodEnd = new Date(prodStart.getTime() + prod.durationHours * 3_600_000)
     if (prodEnd > now) continue
     const closing = u.tasks.filter(
       (t) =>
