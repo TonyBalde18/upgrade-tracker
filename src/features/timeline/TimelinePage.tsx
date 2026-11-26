@@ -17,7 +17,7 @@ import { format } from 'date-fns'
 import { AlertTriangle, CalendarPlus, CalendarRange, Crosshair, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTracker, undo } from '@/store/tracker'
-import { useUi } from '@/store/ui'
+import { useCustomerFilter, useUi } from '@/store/ui'
 import { moveWindow } from '@/store/upgradeActions'
 import type { EnvKey, Upgrade } from '@/lib/model/types'
 import {
@@ -38,11 +38,12 @@ import { Segmented } from '@/components/ui/Segmented'
 import { Dialog } from '@/components/ui/Dialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { cn } from '@/components/ui/cn'
+import { CustomerFilter } from '@/components/ui/CustomerFilter'
 import { useElementWidth } from '@/features/plan/gantt'
 import { labelWidthFor, ROW_H, TimelineRow, type DragPreview } from './TimelineRow'
 
-type Zoom = '6w' | 'q' | '6m' | 'y'
-const ZOOM_DAYS: Record<Zoom, number> = { '6w': 42, q: 91, '6m': 182, y: 365 }
+type Zoom = '2w' | '6w' | 'q' | '6m' | 'y'
+const ZOOM_DAYS: Record<Zoom, number> = { '2w': 14, '6w': 42, q: 91, '6m': 182, y: 365 }
 type Scope = 'active' | 'all'
 const HEADER_H = 52
 
@@ -78,9 +79,12 @@ export default function TimelinePage() {
 
   // --- rows ----------------------------------------------------------------
   const customerById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers])
+  const customerIds = useMemo(() => customers.map((c) => c.id), [customers])
+  const picked = useCustomerFilter(customerIds)
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
     return upgrades
+      .filter((u) => !picked || picked.has(u.customerId))
       .filter((u) => scope === 'all' || isActiveUpgrade(u, settings))
       .filter((u) => {
         if (!q) return true
@@ -94,7 +98,7 @@ export default function TimelinePage() {
         const cb = customerById.get(b.customerId)?.name ?? ''
         return ca.localeCompare(cb) || a.windows.prod.start.localeCompare(b.windows.prod.start)
       })
-  }, [upgrades, scope, query, settings, customerById])
+  }, [upgrades, scope, query, settings, customerById, picked])
 
   const range = useMemo(() => {
     const dates = rows
@@ -310,7 +314,9 @@ export default function TimelinePage() {
     <div className="flex h-full flex-col gap-4 overflow-hidden p-3 md:p-6">
       <div className="flex flex-wrap items-center gap-3">
         <div className="mr-2">
-          <div className="eyebrow">All customers</div>
+          <div className="eyebrow">
+            {picked ? `${picked.size} customer${picked.size > 1 ? 's' : ''}` : 'All customers'}
+          </div>
           <h1 className="text-2xl font-bold">Global timeline</h1>
         </div>
         <Segmented<Zoom>
@@ -318,6 +324,7 @@ export default function TimelinePage() {
           value={zoom}
           onChange={setZoom}
           options={[
+            { value: '2w', label: '2 weeks' },
             { value: '6w', label: '6 weeks' },
             { value: 'q', label: 'Quarter' },
             { value: '6m', label: '6 months' },
@@ -333,6 +340,7 @@ export default function TimelinePage() {
         <Button onClick={() => void exportOverviewExcel()}>
           <FileSpreadsheet className="h-4 w-4" /> Export to Excel
         </Button>
+        <CustomerFilter />
         <Segmented<Scope>
           ariaLabel="Which upgrades"
           value={scope}

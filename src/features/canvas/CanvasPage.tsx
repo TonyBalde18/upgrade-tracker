@@ -14,23 +14,21 @@ import {
   type Node,
   type NodeChange,
 } from '@xyflow/react'
-import { LayoutGrid, Maximize, Workflow, CalendarRange, Shuffle } from 'lucide-react'
+import { Maximize, Workflow, Shuffle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTracker, undo } from '@/store/tracker'
-import { useUi } from '@/store/ui'
+import { useCustomerFilter, useUi } from '@/store/ui'
 import { resetCanvasPositions, saveCanvasPositions } from '@/store/upgradeActions'
 import { isActiveUpgrade } from '@/lib/upgrade/logic'
-import { todayIn } from '@/lib/dates'
-import { readString, writeString } from '@/lib/storage/local'
 import { phaseTone, tones } from '@/theme/brand'
 import { useAppliedTheme } from '@/app/ThemeApplier'
 import { Button } from '@/components/ui/Button'
-import { Segmented } from '@/components/ui/Segmented'
 import { Select } from '@/components/ui/Select'
 import { Switch } from '@/components/ui/Switch'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { buildGraph, type CanvasNode, type Layout, type PhaseNode } from './graph'
+import { CustomerFilter } from '@/components/ui/CustomerFilter'
+import { buildGraph, type CanvasNode, type PhaseNode } from './graph'
 import { edgeTypes, nodeTypes } from './nodes'
 
 function upgradeIdOf(nodeId: string): string {
@@ -45,40 +43,32 @@ function Canvas() {
   const rf = useReactFlow()
   const theme = useAppliedTheme()
   const setNewUpgradeOpen = useUi((s) => s.setNewUpgradeOpen)
-  const today = todayIn(settings.displayTimeZone)
-
-  const [layout, setLayoutState] = useState<Layout>(() =>
-    readString('canvasLayout') === 'time' ? 'time' : 'free',
-  )
-  const setLayout = (l: Layout) => {
-    setLayoutState(l)
-    writeString('canvasLayout', l)
-  }
   const [status, setStatus] = useState('all')
   const [family, setFamily] = useState('all')
-  const [customer, setCustomer] = useState('all')
   const [hideDone, setHideDone] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const customerById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers])
+  const customerIds = useMemo(() => customers.map((c) => c.id), [customers])
+  const picked = useCustomerFilter(customerIds)
   const visible = useMemo(
     () =>
       upgrades
         .filter((u) => !hideDone || isActiveUpgrade(u, settings))
         .filter((u) => status === 'all' || u.scheduleStatus === status)
         .filter((u) => family === 'all' || u.family === family)
-        .filter((u) => customer === 'all' || u.customerId === customer)
+        .filter((u) => !picked || picked.has(u.customerId))
         .sort((a, b) => {
           const na = customerById.get(a.customerId)?.name ?? ''
           const nb = customerById.get(b.customerId)?.name ?? ''
           return na.localeCompare(nb) || a.windows.prod.start.localeCompare(b.windows.prod.start)
         }),
-    [upgrades, hideDone, status, family, customer, settings, customerById],
+    [upgrades, hideDone, status, family, picked, settings, customerById],
   )
 
   const graph = useMemo(
-    () => buildGraph({ upgrades: visible, customers, settings, layout, expanded, today }),
-    [visible, customers, settings, layout, expanded, today],
+    () => buildGraph({ upgrades: visible, customers, settings, expanded }),
+    [visible, customers, settings, expanded],
   )
   const [nodes, setNodes] = useState<CanvasNode[]>(graph.nodes)
   useEffect(() => setNodes(graph.nodes), [graph.nodes])
@@ -92,8 +82,8 @@ function Canvas() {
     )
   }, [])
 
-  // fit the view when the set of lanes or the layout changes
-  const fitKey = `${layout}|${visible.map((u) => u.id).join(',')}`
+  // fit the view when the set of lanes changes
+  const fitKey = visible.map((u) => u.id).join(',')
   const lastFit = useRef('')
   useEffect(() => {
     if (lastFit.current === fitKey) return
@@ -102,25 +92,21 @@ function Canvas() {
     return () => clearTimeout(id)
   }, [fitKey, rf])
 
-  const onNodeDragStop = useCallback(
-    (_: unknown, _node: Node, dragged: Node[]) => {
-      if (layout !== 'free') return
-      const byUpgrade = new Map<string, Record<string, { x: number; y: number }>>()
-      for (const n of dragged) {
-        const uid = upgradeIdOf(n.id)
-        const key = n.id.startsWith('lane:') ? 'lane' : n.id.slice(n.id.lastIndexOf(':') + 1)
-        const rec = byUpgrade.get(uid) ?? {}
-        rec[key] = { x: Math.round(n.position.x), y: Math.round(n.position.y) }
-        byUpgrade.set(uid, rec)
-      }
-      const current = useTracker.getState().doc.upgrades
-      for (const [uid, rec] of byUpgrade) {
-        const u = current.find((x) => x.id === uid)
-        if (u) saveCanvasPositions(uid, { ...(u.canvas.nodePositions ?? {}), ...rec })
-      }
-    },
-    [layout],
-  )
+  const onNodeDragStop = useCallback((_: unknown, _node: Node, dragged: Node[]) => {
+    const byUpgrade = new Map<string, Record<string, { x: number; y: number }>>()
+    for (const n of dragged) {
+      const uid = upgradeIdOf(n.id)
+      const key = n.id.startsWith('lane:') ? 'lane' : n.id.slice(n.id.lastIndexOf(':') + 1)
+      const rec = byUpgrade.get(uid) ?? {}
+      rec[key] = { x: Math.round(n.position.x), y: Math.round(n.position.y) }
+      byUpgrade.set(uid, rec)
+    }
+    const current = useTracker.getState().doc.upgrades
+    for (const [uid, rec] of byUpgrade) {
+      const u = current.find((x) => x.id === uid)
+      if (u) saveCanvasPositions(uid, { ...(u.canvas.nodePositions ?? {}), ...rec })
+    }
+  }, [])
 
   const onNodeClick = useCallback((_: unknown, node: Node) => {
     if (node.type !== 'phase') return
@@ -215,29 +201,7 @@ function Canvas() {
 
         <Panel position="top-left" className="!m-3">
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface/90 p-2 shadow-card backdrop-blur">
-            <Segmented<Layout>
-              ariaLabel="Layout"
-              value={layout}
-              onChange={setLayout}
-              options={[
-                {
-                  value: 'free',
-                  label: (
-                    <>
-                      <LayoutGrid className="h-3.5 w-3.5" /> Free
-                    </>
-                  ),
-                },
-                {
-                  value: 'time',
-                  label: (
-                    <>
-                      <CalendarRange className="h-3.5 w-3.5" /> Time axis
-                    </>
-                  ),
-                },
-              ]}
-            />
+            <CustomerFilter />
             <div className="w-40">
               <Select
                 size="sm"
@@ -262,37 +226,15 @@ function Canvas() {
                 ]}
               />
             </div>
-            <div className="w-44">
-              <Select
-                size="sm"
-                ariaLabel="Customer"
-                value={customer}
-                onChange={setCustomer}
-                options={[
-                  { value: 'all', label: 'All customers' },
-                  ...[...customers]
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((c) => ({ value: c.id, label: c.name })),
-                ]}
-              />
-            </div>
             <label className="flex items-center gap-2 px-1 text-xs text-muted">
               <Switch checked={hideDone} onCheckedChange={setHideDone} label="Hide done" /> Hide
               done
             </label>
-            <Tooltip
-              content={
-                layout === 'time'
-                  ? 'Only in free layout'
-                  : hasCustom
-                    ? 'Forget dragged positions'
-                    : 'Already auto-laid out'
-              }
-            >
+            <Tooltip content={hasCustom ? 'Forget dragged positions' : 'Already auto-laid out'}>
               <span>
                 <Button
                   size="sm"
-                  disabled={layout === 'time' || !hasCustom}
+                  disabled={!hasCustom}
                   onClick={() => {
                     resetCanvasPositions(visible.map((u) => u.id))
                     toast('Auto-layout applied', { action: { label: 'Undo', onClick: undo } })
@@ -321,10 +263,8 @@ function Canvas() {
 
         <Panel position="bottom-center" className="!mb-3">
           <div className="rounded-full border border-border bg-surface/85 px-3 py-1 text-[0.7rem] text-subtle backdrop-blur">
-            Click a phase to expand it · double-click to open the plan ·{' '}
-            {layout === 'free'
-              ? 'drag lanes by their header, or drag single phases'
-              : 'x = date on a shared axis'}
+            Click a phase to expand it · double-click to open the plan · drag lanes by their header,
+            or drag single phases
           </div>
         </Panel>
 

@@ -2,13 +2,13 @@ import { motion } from 'motion/react'
 import { useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { AlarmClock, CalendarCheck2, CalendarPlus, ChevronDown, OctagonAlert } from 'lucide-react'
-import { useUi } from '@/store/ui'
+import { useCustomerFilter, useUi } from '@/store/ui'
+import { CustomerFilter } from '@/components/ui/CustomerFilter'
 import { Button } from '@/components/ui/Button'
 import { useTracker } from '@/store/tracker'
 import { addDaysIso, diffDaysIso, formatDay, todayIn } from '@/lib/dates'
 import { agenda, blockedTasks, groupByDay, overdueTasks, type AgendaItem } from '@/lib/agenda'
 import { Segmented } from '@/components/ui/Segmented'
-import { Select } from '@/components/ui/Select'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { cn } from '@/components/ui/cn'
 import { AgendaRow } from './AgendaRow'
@@ -83,15 +83,14 @@ export default function WeekPage() {
   const now = useNow(60_000)
   const today = todayIn(settings.displayTimeZone, now)
   const [span, setSpan] = useState<Span>('7')
-  const [customer, setCustomer] = useState('all')
   const customerById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers])
+  const customerIds = useMemo(() => customers.map((c) => c.id), [customers])
+  const picked = useCustomerFilter(customerIds)
 
   const filterDoc = useMemo(
     () =>
-      customer === 'all'
-        ? doc
-        : { ...doc, upgrades: doc.upgrades.filter((u) => u.customerId === customer) },
-    [doc, customer],
+      picked ? { ...doc, upgrades: doc.upgrades.filter((u) => picked.has(u.customerId)) } : doc,
+    [doc, picked],
   )
   const overdue = useMemo(() => overdueTasks(filterDoc, today), [filterDoc, today])
   const blocked = useMemo(() => blockedTasks(filterDoc), [filterDoc])
@@ -135,20 +134,7 @@ export default function WeekPage() {
             days
           </p>
         </div>
-        <div className="w-52">
-          <Select
-            size="sm"
-            ariaLabel="Customer"
-            value={customer}
-            onChange={setCustomer}
-            options={[
-              { value: 'all', label: 'All customers' },
-              ...[...customers]
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((c) => ({ value: c.id, label: c.name })),
-            ]}
-          />
-        </div>
+        <CustomerFilter />
         <Button size="sm" onClick={() => useUi.getState().setIcsTarget({ kind: 'upcoming' })}>
           <CalendarPlus className="h-3.5 w-3.5" /> Export upcoming
         </Button>

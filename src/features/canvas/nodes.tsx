@@ -10,7 +10,6 @@ import {
 } from '@xyflow/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Link } from 'react-router'
-import { format } from 'date-fns'
 import {
   Check,
   CircleDashed,
@@ -21,7 +20,7 @@ import {
 } from 'lucide-react'
 import { useTracker } from '@/store/tracker'
 import { updateTask } from '@/store/upgradeActions'
-import { addDaysIso, formatDay, isoWeekOf, parseDay, zoneAbbr, zonedToInstant } from '@/lib/dates'
+import { formatDay, zoneAbbr, zonedToInstant } from '@/lib/dates'
 import { firstStatusOf, statusCategory } from '@/lib/template/schedule'
 import { phaseTone } from '@/theme/brand'
 import { useReducedMotion } from '@/theme/motion'
@@ -30,21 +29,14 @@ import { CustomerAvatar } from '@/components/ui/misc'
 import { ProgressRing } from '@/components/ui/ProgressRing'
 import { cn } from '@/components/ui/cn'
 import { StatusCell } from '@/features/plan/cells'
-import {
-  HEADER_W,
-  type AxisNode,
-  type FlowEdge,
-  type LaneNode,
-  type PhaseNode,
-  type TodayNode,
-} from './graph'
+import { HEADER_W, type FlowEdge, type LaneNode, type PhaseNode } from './graph'
 
 const PHASE_LABEL: Record<string, string> = { 'Go-live': 'Go / No-Go' }
 
 // --- lane -----------------------------------------------------------------------
 
 export const LaneNodeView = memo(function LaneNodeView({ data }: NodeProps<LaneNode>) {
-  const { upgrade, customer, status, progress, width, height, layout } = data
+  const { upgrade, customer, status, progress, width, height } = data
   const color = customer?.color ?? '#94A3B8'
   return (
     <div
@@ -64,7 +56,7 @@ export const LaneNodeView = memo(function LaneNodeView({ data }: NodeProps<LaneN
       />
       <div
         className="lane-handle absolute top-0 bottom-0 left-0 flex flex-col justify-center gap-2 rounded-l-2xl border-r border-border bg-surface/90 py-3 pr-3 pl-5"
-        style={{ width: HEADER_W - 20, cursor: layout === 'free' ? 'grab' : 'default' }}
+        style={{ width: HEADER_W - 20, cursor: 'grab' }}
       >
         <span
           className="absolute top-3 bottom-3 left-0 w-1.5 rounded-r-full"
@@ -82,9 +74,7 @@ export const LaneNodeView = memo(function LaneNodeView({ data }: NodeProps<LaneN
               {customer?.name ?? 'Unknown customer'}
             </div>
           </div>
-          {layout === 'free' && (
-            <GripVertical className="h-4 w-4 shrink-0 text-subtle" aria-hidden />
-          )}
+          <GripVertical className="h-4 w-4 shrink-0 text-subtle" aria-hidden />
         </div>
         <div className="flex items-center gap-1 text-xs text-muted">
           <ReleasePath from={upgrade.fromFamily} to={upgrade.family} size={14} />
@@ -113,7 +103,7 @@ function shortRange(start: string, end: string): string {
 }
 
 export const PhaseNodeView = memo(function PhaseNodeView({ data }: NodeProps<PhaseNode>) {
-  const { step, tasks, windowStart, windowZone, expanded, width, upgradeId, layout } = data
+  const { step, tasks, windowStart, windowZone, expanded, width, upgradeId } = data
   const settings = useTracker((s) => s.doc.settings)
   const reduced = useReducedMotion()
   const tone = phaseTone[step.phase]
@@ -121,7 +111,6 @@ export const PhaseNodeView = memo(function PhaseNodeView({ data }: NodeProps<Pha
   const label = PHASE_LABEL[step.phase] ?? step.phase
   const doneId = firstStatusOf(settings.taskStatuses, 'done')?.id
   const plannedId = firstStatusOf(settings.taskStatuses, 'planned')?.id
-  const compact = layout === 'time' && width < 170
 
   let zone = ''
   if (windowStart && windowZone) {
@@ -200,12 +189,12 @@ export const PhaseNodeView = memo(function PhaseNodeView({ data }: NodeProps<Pha
 
       {span ? (
         <>
-          {!compact && (
+          {
             <div className="mt-1 text-sm font-semibold tabular">
               {shortRange(span.start, span.end)}
             </div>
-          )}
-          {windowStart && !compact && (
+          }
+          {windowStart && (
             <div
               className={cn(
                 'text-[0.7rem] tabular',
@@ -318,53 +307,6 @@ export const PhaseNodeView = memo(function PhaseNodeView({ data }: NodeProps<Pha
   )
 })
 
-// --- time axis + today ------------------------------------------------------------
-
-export const AxisNodeView = memo(function AxisNodeView({ data }: NodeProps<AxisNode>) {
-  const { start, days, px, today } = data
-  const weeks = Array.from({ length: Math.ceil(days / 7) }, (_, i) => addDaysIso(start, i * 7))
-  return (
-    <div className="pointer-events-none relative h-12 select-none" style={{ width: days * px }}>
-      {weeks.map((w, i) => {
-        const first = i === 0 || w.slice(5, 7) !== weeks[i - 1]!.slice(5, 7)
-        const current = isoWeekOf(today).monday === w
-        return (
-          <div
-            key={w}
-            className="absolute top-0 h-12 border-l border-border"
-            style={{ left: i * 7 * px, width: 7 * px }}
-          >
-            {first && (
-              <div className="px-1.5 text-xs font-semibold whitespace-nowrap">
-                {format(parseDay(w), 'MMMM yyyy')}
-              </div>
-            )}
-            <div
-              className={cn(
-                'absolute bottom-1 px-1.5 text-[0.65rem] tabular',
-                current ? 'font-bold text-accent-text' : 'text-subtle',
-              )}
-            >
-              W{isoWeekOf(w).week} · {formatDay(w, 'd MMM')}
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-})
-
-export const TodayNodeView = memo(function TodayNodeView({ data }: NodeProps<TodayNode>) {
-  return (
-    <div className="pointer-events-none relative" style={{ height: data.height, width: 2 }}>
-      <div className="absolute inset-0 bg-accent shadow-[0_0_14px_var(--ut-accent-glow)]" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 rounded bg-accent px-1.5 py-0.5 text-[0.6rem] font-bold tracking-wider text-accent-fg uppercase">
-        Today
-      </div>
-    </div>
-  )
-})
-
 // --- edge -------------------------------------------------------------------------
 
 export const FlowEdgeView = memo(function FlowEdgeView({
@@ -424,7 +366,5 @@ export const FlowEdgeView = memo(function FlowEdgeView({
 export const nodeTypes = {
   lane: LaneNodeView,
   phase: PhaseNodeView,
-  axis: AxisNodeView,
-  today: TodayNodeView,
 }
 export const edgeTypes = { flow: FlowEdgeView }

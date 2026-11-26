@@ -14,7 +14,7 @@ import {
   LogOut,
   Monitor,
   Moon,
-  PanelLeft,
+  Rows3,
   Plus,
   Redo2,
   Rocket,
@@ -55,7 +55,7 @@ export function CommandPalette() {
   const setOpen = useUi((s) => s.setPaletteOpen)
   const initialQuery = useUi((s) => s.paletteQuery)
   const setNewUpgradeOpen = useUi((s) => s.setNewUpgradeOpen)
-  const toggleSidebar = useUi((s) => s.toggleSidebar)
+  const toggleCompact = useUi((s) => s.toggleCompact)
   const navigate = useNavigate()
   const customers = useTracker((s) => s.doc.customers)
   const upgrades = useTracker((s) => s.doc.upgrades)
@@ -174,8 +174,8 @@ export function CommandPalette() {
                       >
                         <Monitor className="h-4 w-4" /> System theme
                       </Command.Item>
-                      <Command.Item className={itemCls} onSelect={() => run(toggleSidebar)}>
-                        <PanelLeft className="h-4 w-4" /> Toggle sidebar
+                      <Command.Item className={itemCls} onSelect={() => run(toggleCompact)}>
+                        <Rows3 className="h-4 w-4" /> Toggle compact rows
                       </Command.Item>
                       <Command.Item
                         className={itemCls}

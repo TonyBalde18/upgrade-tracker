@@ -1,23 +1,18 @@
 /**
  * Builds the React Flow graph: one lane (group node) per upgrade with six phase
- * nodes chained by edges. Two layouts:
- *  - free: phases evenly spaced; positions dragged by the user are kept
- *  - time: x = date on a shared axis for every lane (not draggable)
+ * nodes chained by edges. Phases are evenly spaced; positions dragged by the
+ * user are kept.
  */
 import type { Edge, Node } from '@xyflow/react'
 import type { Customer, Phase, Settings, StatusDef, Task, Upgrade } from '@/lib/model/types'
-import { addDaysIso, diffDaysIso, isoWeekOf } from '@/lib/dates'
 import { phaseFlow, type PhaseFlowStep } from '@/lib/timeline'
 import { progressOf } from '@/lib/template/schedule'
-
-export type Layout = 'free' | 'time'
 
 export const HEADER_W = 250
 export const NODE_W = 196
 export const NODE_GAP = 64
 export const LANE_GAP = 28
 export const BASE_LANE_H = 156
-export const TIME_PX = 22 // px per day on the time axis
 const TASK_ROW_H = 34
 const EXPANDED_BASE_H = 150
 
@@ -28,7 +23,6 @@ export type LaneData = {
   progress: number
   width: number
   height: number
-  layout: Layout
 }
 
 export type PhaseData = {
@@ -38,18 +32,12 @@ export type PhaseData = {
   windowStart: string | null
   windowZone: string | null
   expanded: boolean
-  layout: Layout
   width: number
 }
 
-export type AxisData = { start: string; days: number; px: number; today: string }
-export type TodayData = { height: number }
-
 export type LaneNode = Node<LaneData, 'lane'>
 export type PhaseNode = Node<PhaseData, 'phase'>
-export type AxisNode = Node<AxisData, 'axis'>
-export type TodayNode = Node<TodayData, 'today'>
-export type CanvasNode = LaneNode | PhaseNode | AxisNode | TodayNode
+export type CanvasNode = LaneNode | PhaseNode
 
 export type FlowEdgeData = { state: 'done' | 'active' | 'future' | 'na'; tone: string }
 export type FlowEdge = Edge<FlowEdgeData, 'flow'>
@@ -68,19 +56,10 @@ export interface BuildInput {
   upgrades: Upgrade[]
   customers: Customer[]
   settings: Settings
-  layout: Layout
   expanded: Set<string>
-  today: string
 }
 
-export function buildGraph({
-  upgrades,
-  customers,
-  settings,
-  layout,
-  expanded,
-  today,
-}: BuildInput): {
+export function buildGraph({ upgrades, customers, settings, expanded }: BuildInput): {
   nodes: CanvasNode[]
   edges: FlowEdge[]
 } {
@@ -88,37 +67,23 @@ export function buildGraph({
   const edges: FlowEdge[] = []
   const byId = new Map(customers.map((c) => [c.id, c]))
 
-  // shared time axis
-  const allDates = upgrades
-    .flatMap((u) => u.tasks.flatMap((t) => [t.start, t.end]))
-    .filter((d): d is string => !!d)
-    .sort()
-  const axisStart = isoWeekOf(addDaysIso(allDates[0] ?? today, -7)).monday
-  const axisEnd = addDaysIso(allDates[allDates.length - 1] ?? today, 14)
-  const axisDays = Math.max(28, diffDaysIso(axisEnd, axisStart) + 1)
-  const xOfDate = (iso: string) => HEADER_W + diffDaysIso(iso, axisStart) * TIME_PX
+  const width = HEADER_W + 6 * NODE_W + 5 * NODE_GAP + 40
 
-  const freeWidth = HEADER_W + 6 * NODE_W + 5 * NODE_GAP + 40
-  const timeWidth = HEADER_W + axisDays * TIME_PX + 40
-
-  let y = layout === 'time' ? 70 : 0
+  let y = 0
   for (const u of upgrades) {
     const flow = phaseFlow(u, settings)
-    const saved = layout === 'free' ? (u.canvas.nodePositions ?? {}) : {}
+    const saved = u.canvas.nodePositions ?? {}
     const laneId = `lane:${u.id}`
-    const visible = layout === 'time' ? flow.filter((f) => f.span) : flow
     const tallest = Math.max(
       0,
-      ...visible.map((f, i) => {
+      ...flow.map((f) => {
         const id = `${u.id}:${f.phase}`
-        const top = layout === 'time' ? 22 + (i % 2) * 64 : 30
         return expanded.has(id)
-          ? top + expandedHeight(u.tasks.filter((t) => t.phase === f.phase).length)
+          ? 30 + expandedHeight(u.tasks.filter((t) => t.phase === f.phase).length)
           : 0
       }),
     )
-    const height = Math.max(layout === 'time' ? 172 : BASE_LANE_H, tallest + 24)
-    const width = layout === 'time' ? timeWidth : freeWidth
+    const height = Math.max(BASE_LANE_H, tallest + 24)
 
     nodes.push({
       id: laneId,
@@ -131,27 +96,20 @@ export function buildGraph({
         progress: progressOf(u.tasks, settings.taskStatuses),
         width,
         height,
-        layout,
       },
       style: { width, height },
       dragHandle: '.lane-handle',
-      draggable: layout === 'free',
+      draggable: true,
       selectable: false,
       zIndex: 0,
     })
 
     let prev: { id: string; step: PhaseFlowStep } | null = null
-    visible.forEach((step, i) => {
+    flow.forEach((step, i) => {
       const id = `${u.id}:${step.phase}`
       const env = PHASE_WINDOW[step.phase]
       const win = env ? u.windows[env] : null
-      let position = saved[step.phase] ?? { x: HEADER_W + i * (NODE_W + NODE_GAP), y: 30 }
-      let nodeW = NODE_W
-      if (layout === 'time' && step.span) {
-        const days = diffDaysIso(step.span.end, step.span.start) + 1
-        nodeW = Math.max(132, days * TIME_PX)
-        position = { x: xOfDate(step.span.start), y: 22 + (i % 2) * 64 }
-      }
+      const position = saved[step.phase] ?? { x: HEADER_W + i * (NODE_W + NODE_GAP), y: 30 }
       nodes.push({
         id,
         type: 'phase',
@@ -164,10 +122,9 @@ export function buildGraph({
           windowStart: win?.start ?? null,
           windowZone: win?.timeZone ?? null,
           expanded: expanded.has(id),
-          layout,
-          width: nodeW,
+          width: NODE_W,
         },
-        draggable: layout === 'free',
+        draggable: true,
         zIndex: expanded.has(id) ? 20 : 10,
       })
       if (!prev) {
@@ -212,28 +169,5 @@ export function buildGraph({
     y += height + LANE_GAP
   }
 
-  if (layout === 'time' && upgrades.length > 0) {
-    nodes.push({
-      id: 'axis',
-      type: 'axis',
-      position: { x: HEADER_W, y: 0 },
-      data: { start: axisStart, days: axisDays, px: TIME_PX, today },
-      draggable: false,
-      selectable: false,
-      zIndex: 1,
-    })
-    const ti = diffDaysIso(today, axisStart)
-    if (ti >= 0 && ti <= axisDays) {
-      nodes.push({
-        id: 'today',
-        type: 'today',
-        position: { x: xOfDate(today) + TIME_PX / 2, y: 0 },
-        data: { height: y },
-        draggable: false,
-        selectable: false,
-        zIndex: 30,
-      })
-    }
-  }
   return { nodes, edges }
 }

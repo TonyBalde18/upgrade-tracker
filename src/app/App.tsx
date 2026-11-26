@@ -1,7 +1,6 @@
 import { HashRouter } from 'react-router'
 import { MotionConfig } from 'motion/react'
 import { Toaster } from 'sonner'
-import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { AnimatedRoutes } from './AnimatedRoutes'
 import { CommandPalette } from './CommandPalette'
@@ -21,15 +20,12 @@ function Shell() {
   useShortcuts()
   useAutoStatus()
   return (
-    <div className="flex h-full">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar />
-        <BackupReminder />
-        <main className="relative min-h-0 flex-1 overflow-auto pb-16 md:pb-0">
-          <AnimatedRoutes />
-        </main>
-      </div>
+    <div className="flex h-full flex-col">
+      <TopBar />
+      <BackupReminder />
+      <main className="relative min-h-0 flex-1 overflow-auto pb-16 md:pb-0">
+        <AnimatedRoutes />
+      </main>
       <BottomNav />
       <CommandPalette />
       <NewUpgradeDialog />
