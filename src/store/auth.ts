@@ -18,9 +18,16 @@ export interface AuthUser {
   name: string
 }
 
+/**
+ * owner:  your own tracker (read and write)
+ * viewer: someone else's tracker that its owner shared with you (read only)
+ */
+export type AuthRole = 'owner' | 'viewer'
+
 interface AuthState {
   status: AuthStatus
   user: AuthUser | null
+  role: AuthRole
   /** last sign-in problem, shown on the sign-in screen */
   error: string | null
   busy: boolean
@@ -29,9 +36,14 @@ interface AuthState {
 export const useAuth = create<AuthState>()(() => ({
   status: isFirebaseConfigured() ? 'loading' : 'unconfigured',
   user: null,
+  role: 'owner',
   error: null,
   busy: false,
 }))
+
+/** True for someone with view-only access to another person's tracker. */
+export const isViewer = (): boolean => useAuth.getState().role === 'viewer'
+export const useIsViewer = (): boolean => useAuth((s) => s.role === 'viewer')
 
 const loadFirebase = () => Promise.all([import('@/lib/cloud/firebase'), import('firebase/auth')])
 
@@ -48,15 +60,20 @@ export async function startAuth(): Promise<void> {
     ])
     onAuthStateChanged(firebaseAuth(), (u) => {
       if (u) {
-        useAuth.setState({
-          status: 'signedIn',
-          user: { uid: u.uid, email: u.email ?? '', name: u.displayName ?? '' },
-          error: null,
-        })
-        cloud.startCloudSync(u.uid)
+        void (async () => {
+          // someone the owner gave view access to reads the owner's tracker
+          const access = await cloud.resolveAccess(u.uid, u.email ?? '')
+          useAuth.setState({
+            status: 'signedIn',
+            user: { uid: u.uid, email: u.email ?? '', name: u.displayName ?? '' },
+            role: access.role,
+            error: null,
+          })
+          cloud.startCloudSync(access.dataUid, { readOnly: access.role === 'viewer' })
+        })()
       } else {
         cloud.stopCloudSync()
-        useAuth.setState({ status: 'signedOut', user: null })
+        useAuth.setState({ status: 'signedOut', user: null, role: 'owner' })
       }
     })
   } catch (e) {

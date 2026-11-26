@@ -3,6 +3,7 @@ import { motion } from 'motion/react'
 import {
   Cloud,
   Database,
+  Eye,
   Download,
   FileUp,
   Palette,
@@ -24,11 +25,14 @@ import { PeopleListEditor } from './PeopleListEditor'
 import { DataSection } from './DataSection'
 import { StatusListEditor } from './StatusListEditor'
 import { ReleasesSection } from './ReleasesSection'
+import { ViewAccessSection } from './ViewAccessSection'
+import { useIsViewer } from '@/store/auth'
 import { formatInZone, zoneAbbr } from '@/lib/dates'
 import type { MotionPref, ThemePref } from '@/lib/model/types'
 
 const SECTIONS = [
   { id: 'data', label: 'Account & sync', icon: Cloud },
+  { id: 'access', label: 'View access', icon: Eye },
   { id: 'backup', label: 'Backup', icon: Database },
   { id: 'time', label: 'Time & dates', icon: Clock },
   { id: 'appearance', label: 'Appearance', icon: Palette },
@@ -205,6 +209,8 @@ function AppearanceSection() {
 }
 
 export default function SettingsPage() {
+  const viewer = useIsViewer()
+  const sections = viewer ? SECTIONS.filter((s) => s.id === 'data') : SECTIONS
   return (
     <div className="mx-auto flex max-w-6xl gap-8 p-4 md:p-8">
       <nav
@@ -212,7 +218,7 @@ export default function SettingsPage() {
         aria-label="Settings sections"
       >
         <ul className="flex flex-col gap-0.5">
-          {SECTIONS.map((s) => (
+          {sections.map((s) => (
             <li key={s.id}>
               <button
                 type="button"
@@ -243,52 +249,64 @@ export default function SettingsPage() {
             </Section>
           )}
         />
-        <BackupSection />
-        <TimeSection />
-        <AppearanceSection />
-        <Section
-          id="releases"
-          title="Releases"
-          icon={<Rocket className="h-4 w-4" />}
-          description="A logo per ServiceNow release, shown next to the release name on plans, the dashboard, the timeline and the canvas. Stored in your private data."
-        >
-          <ReleasesSection />
-        </Section>
-        <Section
-          id="people"
-          title="Owners & assignees"
-          icon={<Users className="h-4 w-4" />}
-          description="Pick lists for tasks and template steps."
-        >
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <PeopleListEditor kind="owners" label="Owners" />
-            <PeopleListEditor kind="assignees" label="Assignees" />
-          </div>
-        </Section>
-        <Section
-          id="statuses"
-          title="Statuses"
-          icon={<Tags className="h-4 w-4" />}
-          description="Rename, recolour, reorder, add or delete. Each status maps to a category that drives progress, overdue and N/A logic."
-        >
-          <div className="flex flex-col gap-8">
-            <StatusListEditor
-              list="scheduleStatuses"
-              title="Upgrade schedule status"
-              description="The legend of the global grid (Requested, Confirmed…)."
-            />
-            <StatusListEditor
-              list="windowStatuses"
-              title="Window status"
-              description="For each DEV / UAT / PROD window. A missing UAT window shows as N/A."
-            />
-            <StatusListEditor
-              list="taskStatuses"
-              title="Task status"
-              description="For every step of an upgrade plan."
-            />
-          </div>
-        </Section>
+        {!viewer && (
+          <>
+            <Section
+              id="access"
+              title="View access"
+              icon={<Eye className="h-4 w-4" />}
+              description="Let colleagues see this tracker without changing it."
+            >
+              <ViewAccessSection />
+            </Section>
+            <BackupSection />
+            <TimeSection />
+            <AppearanceSection />
+            <Section
+              id="releases"
+              title="Releases"
+              icon={<Rocket className="h-4 w-4" />}
+              description="A logo per ServiceNow release, shown next to the release name on plans, the dashboard, the timeline and the canvas. Stored in your private data."
+            >
+              <ReleasesSection />
+            </Section>
+            <Section
+              id="people"
+              title="Owners & assignees"
+              icon={<Users className="h-4 w-4" />}
+              description="Pick lists for tasks and template steps."
+            >
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <PeopleListEditor kind="owners" label="Owners" />
+                <PeopleListEditor kind="assignees" label="Assignees" />
+              </div>
+            </Section>
+            <Section
+              id="statuses"
+              title="Statuses"
+              icon={<Tags className="h-4 w-4" />}
+              description="Rename, recolour, reorder, add or delete. Each status maps to a category that drives progress, overdue and N/A logic."
+            >
+              <div className="flex flex-col gap-8">
+                <StatusListEditor
+                  list="scheduleStatuses"
+                  title="Upgrade schedule status"
+                  description="The legend of the global grid (Requested, Confirmed…)."
+                />
+                <StatusListEditor
+                  list="windowStatuses"
+                  title="Window status"
+                  description="For each DEV / UAT / PROD window. A missing UAT window shows as N/A."
+                />
+                <StatusListEditor
+                  list="taskStatuses"
+                  title="Task status"
+                  description="For every step of an upgrade plan."
+                />
+              </div>
+            </Section>
+          </>
+        )}
       </div>
     </div>
   )

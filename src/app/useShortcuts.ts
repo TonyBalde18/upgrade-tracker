@@ -4,6 +4,7 @@ import { NAV } from './nav'
 import { useUi } from '@/store/ui'
 import { redo, undo } from '@/store/tracker'
 import { saveNow } from '@/store/saveControl'
+import { isViewer } from '@/store/auth'
 
 function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
@@ -60,7 +61,7 @@ export function useShortcuts(): void {
         ui.openPalette()
         return
       }
-      if (key === 'n') {
+      if (key === 'n' && !isViewer()) {
         e.preventDefault()
         ui.setNewUpgradeOpen(true)
         return

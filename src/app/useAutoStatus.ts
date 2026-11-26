@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { useTracker } from '@/store/tracker'
 import { useNow } from '@/lib/useNow'
 import { autoStatusChanges } from '@/lib/upgrade/autoStatus'
+import { useIsViewer } from '@/store/auth'
 
 /**
  * Applies the automatic upgrade status rules (see lib/upgrade/autoStatus.ts) while
@@ -13,7 +14,11 @@ export function useAutoStatus(): void {
   const doc = useTracker((s) => s.doc)
   const now = useNow(60_000)
 
+  const viewer = useIsViewer()
+
   useEffect(() => {
+    // the owner's app updates statuses; view-only users never write
+    if (viewer) return
     const changes = autoStatusChanges(doc.upgrades, doc.settings, now)
     if (changes.length === 0) return
     const at = new Date().toISOString()
@@ -36,5 +41,5 @@ export function useAutoStatus(): void {
       const label = doc.settings.scheduleStatuses.find((s) => s.id === c.statusId)?.label ?? ''
       toast(`${name} ${u?.family ?? ''}: ${label}`, { description: c.logText })
     }
-  }, [doc, now])
+  }, [doc, now, viewer])
 }

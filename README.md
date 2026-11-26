@@ -155,6 +155,45 @@ These values are not secret (they identify the project, they don't give access t
 
 ---
 
+### Give a colleague view access
+
+A colleague can open your tracker **read-only**: they see everything live and can export to Excel or print, but can not change anything. The database itself refuses their changes.
+
+**Once: update the database rules.** Firebase console → **Firestore Database → Rules**, replace everything with the text below (put **your** Google email where it says `YOUR-EMAIL@gmail.com`) → **Publish**:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function isOwner() {
+      return signedIn() && request.auth.token.email == "YOUR-EMAIL@gmail.com";
+    }
+    function myEmail() {
+      return request.auth.token.email.lower();
+    }
+    function sharedWithMe(uid) {
+      return exists(/databases/$(database)/documents/access/$(myEmail()))
+        && get(/databases/$(database)/documents/access/$(myEmail())).data.ownerUid == uid;
+    }
+    // the tracker: you read and write, people on your access list only read
+    match /users/{uid}/{document=**} {
+      allow read, write: if isOwner() && request.auth.uid == uid;
+      allow read: if signedIn() && sharedWithMe(uid);
+    }
+    // the access list: managed by you; each person can only see their own entry
+    match /access/{email} {
+      allow read, write: if isOwner();
+      allow get: if signedIn() && myEmail() == email;
+    }
+  }
+}
+```
+
+**Each person:** in the app, **Settings → View access** → type their Google email → **Give view access**. They open the same web address and sign in with that Google account. **Remove** takes access away again. Their emails are stored in your database, never in the code, and you don't need to touch the rules again.
+
 ## 5. Everyday tasks
 
 ### Back up

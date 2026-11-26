@@ -18,6 +18,7 @@ const server = vi.hoisted(() => ({
   onError: null as null | ((e: unknown) => void),
   writes: [] as string[],
   failNextCommit: null as null | { code: string; message: string },
+  access: new Map<string, { ownerUid: string }>(),
 }))
 
 function snapshot(fromCache = false): FakeSnap {
@@ -74,11 +75,27 @@ vi.mock('firebase/firestore', () => ({
     }
   },
   waitForPendingWrites: () => Promise.resolve(),
+  getDoc: (r: { id: string }) =>
+    Promise.resolve({
+      exists: () => server.access.has(r.id),
+      get: (k: string) => (server.access.get(r.id) as Record<string, unknown> | undefined)?.[k],
+    }),
+  getDocs: () => Promise.resolve({ docs: [] }),
+  setDoc: (r: { id: string }, data: { ownerUid: string }) => {
+    server.access.set(r.id, data)
+    return Promise.resolve()
+  },
+  deleteDoc: (r: { id: string }) => {
+    server.access.delete(r.id)
+    return Promise.resolve()
+  },
+  query: () => ({}),
+  where: () => ({}),
 }))
 
 const { useTracker } = await import('./tracker')
 const { useAuth } = await import('./auth')
-const { flush, startCloudSync, stopCloudSync } = await import('./cloud')
+const { addViewer, flush, resolveAccess, startCloudSync, stopCloudSync } = await import('./cloud')
 
 const tick = () => new Promise((r) => setTimeout(r, 0))
 
@@ -90,6 +107,8 @@ beforeEach(() => {
   server.docs = new Map()
   server.writes = []
   server.failNextCommit = null
+  server.access = new Map()
+  useAuth.setState({ role: 'owner' })
   useTracker.setState({ hydrated: false })
   useTracker.getState().replaceDoc(emptyDoc())
   useAuth.setState({ status: 'signedIn', user: { uid: 'u1', email: 'a@b.c', name: '' } })
@@ -211,5 +230,48 @@ describe('cloud sync', () => {
     await tick()
     expect(useTracker.getState().sync.status).toBe('error')
     expect(useTracker.getState().doc.customers.some((c) => c.name === 'Kept')).toBe(true)
+  })
+})
+
+describe('view-only access', () => {
+  it('opens the shared tracker for someone on the access list', async () => {
+    expect(await resolveAccess('colleague-uid', 'Colleague@Example.com')).toEqual({
+      role: 'owner',
+      dataUid: 'colleague-uid',
+    })
+    await addViewer('owner-uid', 'Colleague@Example.com')
+    expect(await resolveAccess('colleague-uid', 'colleague@example.com')).toEqual({
+      role: 'viewer',
+      dataUid: 'owner-uid',
+    })
+    // the owner never becomes a viewer of their own tracker
+    expect((await resolveAccess('owner-uid', 'colleague@example.com')).role).toBe('owner')
+  })
+
+  it('a viewer sees live changes but nothing is ever written', async () => {
+    seedServer()
+    useAuth.setState({ role: 'viewer' })
+    startCloudSync('owner-uid', { readOnly: true })
+    emit()
+    expect(useTracker.getState().doc.customers.length).toBeGreaterThan(0)
+    // edits are refused in the store
+    useTracker.getState().addCustomers(['Should not appear'])
+    expect(useTracker.getState().doc.customers.some((c) => c.name === 'Should not appear')).toBe(
+      false,
+    )
+    useTracker.getState().replaceDoc(emptyDoc(), { dirty: true, description: 'Clear all data' })
+    expect(useTracker.getState().doc.customers.length).toBeGreaterThan(0)
+    // even a change that slips past the store is never sent
+    useTracker.setState((st) => {
+      st.doc.customers[0]!.notes = 'local only'
+    })
+    flush()
+    await tick()
+    expect(server.writes).toEqual([])
+    // changes by the owner still arrive
+    const c = useTracker.getState().doc.customers[1]!
+    server.docs.set(`c_${c.id}`, JSON.stringify({ ...c, notes: 'from owner' }))
+    emit()
+    expect(useTracker.getState().doc.customers[1]!.notes).toBe('from owner')
   })
 })

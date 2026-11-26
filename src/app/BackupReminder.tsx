@@ -3,6 +3,7 @@ import { DatabaseBackup, X } from 'lucide-react'
 import { useTracker } from '@/store/tracker'
 import { backupDue, useBackupReminder } from '@/store/backupReminder'
 import { useNow } from '@/lib/useNow'
+import { useIsViewer } from '@/store/auth'
 import { Button } from '@/components/ui/Button'
 import { exportBackup } from './actions'
 
@@ -13,7 +14,8 @@ export function BackupReminder() {
   const snoozedUntil = useBackupReminder((s) => s.snoozedUntil)
   const snooze = useBackupReminder((s) => s.snooze)
   const now = useNow(3_600_000)
-  const { due, days } = backupDue({ lastBackupAt, snoozedUntil }, hasData, now)
+  const viewer = useIsViewer()
+  const { due, days } = backupDue({ lastBackupAt, snoozedUntil }, hasData && !viewer, now)
 
   return (
     <AnimatePresence initial={false}>

@@ -16,6 +16,19 @@ import type { Customer, Settings, StatusDef, StatusListKey, TrackerDoc } from '@
 import { newId } from '@/lib/id'
 import { customerColors } from '@/theme/brand'
 import { withReleaseLogo } from '@/lib/releases'
+import { toast } from 'sonner'
+import { isViewer } from './auth'
+
+let lastNotice = 0
+/** View-only users can not change anything: say so (at most every few seconds). */
+function blockedForViewer(): boolean {
+  if (!isViewer()) return false
+  if (Date.now() - lastNotice > 4000) {
+    lastNotice = Date.now()
+    toast('View only', { description: 'You can look and export, but not change this tracker.' })
+  }
+  return true
+}
 
 export type SyncStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error' | 'offline'
 
@@ -83,6 +96,7 @@ export const useTracker = create<TrackerState>()(
       pendingChanges: [],
 
       commit(description, recipe, opts) {
+        if (blockedForViewer()) return
         const t = useTracker.temporal.getState()
         const skipHistory = opts?.history === false
         if (skipHistory) t.pause()
@@ -95,6 +109,8 @@ export const useTracker = create<TrackerState>()(
       },
 
       replaceDoc(doc, opts) {
+        // loading data from the server is fine; replacing it (import, demo, clear) is an edit
+        if (opts?.dirty && blockedForViewer()) return
         const t = useTracker.temporal.getState()
         t.pause()
         set((s) => {

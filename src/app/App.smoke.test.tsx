@@ -43,6 +43,7 @@ beforeEach(() => {
   useAuth.setState({
     status: 'signedIn',
     user: { uid: 'test-uid', email: 'someone@example.com', name: 'Someone' },
+    role: 'owner',
     error: null,
     busy: false,
   })
@@ -86,6 +87,27 @@ describe('sign-in gate', () => {
     const { el, root } = await render('#/')
     cleanup = () => root.unmount()
     expect(el.textContent).toContain('Firebase is not set up yet')
+  })
+
+  it('shows a view-only user the data without editing controls', async () => {
+    useTracker.getState().replaceDoc(buildDemoDoc())
+    useAuth.setState({ role: 'viewer' })
+    const { el, root } = await render('#/settings')
+    cleanup = () => {
+      root.unmount()
+      useAuth.setState({ role: 'owner' })
+    }
+    expect(el.textContent).toContain('View only')
+    expect(el.textContent).toContain('view-only')
+    expect(el.textContent).not.toContain('New upgrade')
+    expect(el.textContent).not.toContain('Give view access')
+  })
+
+  it('shows the owner the view access section', async () => {
+    useTracker.getState().replaceDoc(buildDemoDoc())
+    const { el, root } = await render('#/settings')
+    cleanup = () => root.unmount()
+    expect(el.textContent).toContain('Give view access')
   })
 
   it('waits for the data before showing the app', async () => {

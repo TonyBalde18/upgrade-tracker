@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { AlertTriangle, Check, CircleDot, LoaderCircle, WifiOff } from 'lucide-react'
+import { AlertTriangle, Check, CircleDot, Eye, LoaderCircle, WifiOff } from 'lucide-react'
+import { useIsViewer } from '@/store/auth'
 import { useTracker } from '@/store/tracker'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { saveNow } from '@/store/saveControl'
@@ -8,6 +9,17 @@ import { formatDistanceToNowStrict } from 'date-fns'
 export function SyncIndicator() {
   const sync = useTracker((s) => s.sync)
   const pending = useTracker((s) => s.pendingChanges.length)
+  const viewer = useIsViewer()
+
+  if (viewer)
+    return (
+      <Tooltip content="You have view-only access: you can look and export, not change anything.">
+        <span className="flex h-8 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 text-xs font-medium text-sky-400 sm:px-3">
+          <Eye className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">View only</span>
+        </span>
+      </Tooltip>
+    )
 
   let icon = <Check className="h-3.5 w-3.5" />
   let label = 'Saved'
